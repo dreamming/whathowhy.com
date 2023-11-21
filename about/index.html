@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>关于我</title>
+    <style>
+        /* 设置全局字体和颜色 */
+        body {
+            font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+            color: #fff;
+            background-color: #000;
+        }
+
+        /* 设置标题样式 */
+        h1 {
+            font-size: 3rem;
+            margin-bottom: 2rem;
+        }
+
+        /* 设置内容区域样式 */
+        .content {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 4rem;
+        }
+
+        a {
+            color: #0f0;
+            /* color: #fff; */
+            text-decoration: none;
+            border-bottom: 1px solid #0f0;
+            /* border-bottom: 1px solid #fff; */
+        }
+
+        /* 设置按钮样式 */
+        .btn {
+            display: inline-block;
+            padding: 1rem 2rem;
+            background-color: #00ff00;
+            color: #000;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .btn:hover {
+            background-color: #fff;
+        }
+
+        /* Matrix 动态背景 */
+        canvas {
+            position: fixed;
+            z-index: -1;
+            top: 0;
+            left: 0;
+        }
+
+        .container {
+            width: 80%;
+            margin: 0 auto;
+            padding: 100px 0;
+        }
+
+        .description {
+            font-size: 19px;
+            /* color: #fff; */
+            color: #0f0;
+            /* text-shadow: 0 0 10px #0f0, 0 0 20px #0f0, 0 0 30px #0f0, 0 0 40px #0f0; */
+            margin-bottom: 20px;
+        }
+
+        .title {
+            font-size: 48px;
+            font-weight: bold;
+            text-align: center;
+            color: #0f0;
+            text-shadow: 0 0 10px #0f0, 0 0 20px #0f0, 0 0 30px #0f0, 0 0 40px #0f0;
+            margin-bottom: 50px;
+        }
+
+        .subtitle {
+            font-size: 25px;
+            font-weight: bold;
+            color: #fff;
+            margin-bottom: 20px;
+        }
+
+        .read-more {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 10px 20px;
+            background-color: #333;
+            color: #fff;
+            text-decoration: none;
+            border-radius: 5px;
+            transition: background-color 0.3s ease-in-out;
+        }
+
+        .read-more:hover {
+            background-color: #555;
+        }
+    </style>
+    <!-- Google Tag Manager -->
+    <script>(function (w, d, s, l, i) {
+            w[l] = w[l] || []; w[l].push({
+                'gtm.start':
+                    new Date().getTime(), event: 'gtm.js'
+            }); var f = d.getElementsByTagName(s)[0],
+                j = d.createElement(s), dl = l != 'dataLayer' ? '&l=' + l : ''; j.async = true; j.src =
+                    'https://www.googletagmanager.com/gtm.js?id=' + i + dl; f.parentNode.insertBefore(j, f);
+        })(window, document, 'script', 'dataLayer', 'GTM-N9NJ5HB');</script>
+    <!-- End Google Tag Manager -->
+</head>
+
+<body>
+    <!-- Matrix 动态背景 -->
+    <canvas id="matrix"></canvas>
+    <!-- 内容区域 -->
+    <div class="container">
+        <h1 class="title">About Me</h1>
+        <p class="subtitle">你好, 我是 Mark.Y </p>
+        <p class="description">
+            我是一名 Java 开发工程师，拥有丰富的 Java 开发经验 <br> 热爱技术，对新技术和新领域一直保持兴趣和热情，并积极学习和探索，持续关注技术发展趋势 <br>
+            有一只名字叫 Orange 的可爱小猫🐱，她给我带来了很多欢乐
+        </p>
+        <p class="description">
+            我喜欢游泳🏊，偶尔会滑板🛹 <br>
+            喜欢电影，让我探索未知的故事和人物 <br>
+            喜欢音乐，让我感受未知的声音和情感 <br>
+            喜欢人群中的热闹和喧嚣，也喜欢一个人的静谧与安静
+        </p>
+        <p class="description">
+            我的邮箱：<a href="mailto:527386108@qq.com">527386108@qq.com</a> <br>
+            我的微信：<a href="weixin://contacts/profile/dmzvsdmz">dmzvsdmz</a> <br>
+            我的小猫：<a href="https://www.douyin.com/user/MMOrange" target="_blank">Orange🐱</a>
+        </p>
+        <p class="description" style="text-align: right; margin-top: 50px;">
+            <a href="javascript:history.back()" class="read-more">READ MORE &raquo;</a>
+        </p>
+    </div>
+    <script>
+        // Matrix 动态背景
+        var c = document.getElementById("matrix");
+        var ctx = c.getContext("2d");
+        // 设置画布大小
+        var W = window.innerWidth;
+        var H = window.innerHeight;
+        c.width = W;
+        c.height = H;
+        // 生成随机字符
+        var matrix = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+:<>?{}|[];,./";
+        matrix = matrix.split("");
+        var font_size = 10;
+        var columns = W / font_size;
+        var drops = [];
+        for (var x = 0; x < columns; x++)
+            drops[x] = Math.floor(Math.random() * H / font_size);
+        function drawMatrix() {
+            // 背景颜色和透明度
+            ctx.fillStyle = "rgba(0, 0, 0, 0.04)";
+            ctx.fillRect(0, 0, W, H);
+            // 字符颜色
+            ctx.fillStyle = "#0f0";
+            // 逐行绘制字符
+            for (var i = 0; i < drops.length; i++) {
+                var text = matrix[Math.floor(Math.random() * matrix.length)];
+                ctx.fillText(text, i * font_size, drops[i] * font_size);
+                // 重置掉落位置
+                if (drops[i] * font_size > H && Math.random() > 0.975)
+                    drops[i] = 0;
+                drops[i]++;
+            }
+        }
+        setInterval(drawMatrix, 38);
+    </script>
+    <!-- Google Tag Manager (noscript) -->
+    <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-N9NJ5HB" height="0" width="0"
+            style="display:none;visibility:hidden"></iframe></noscript>
+    <!-- End Google Tag Manager (noscript) -->
+</body>
+
+</html>
