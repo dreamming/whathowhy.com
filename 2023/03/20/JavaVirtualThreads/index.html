@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.4.2">
+
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-N9NJ5HB');</script>
+<!-- End Google Tag Manager -->
+
+<!-- Google Tag Manager (noscript) -->
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-N9NJ5HB"
+height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+<!-- End Google Tag Manager (noscript) -->
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"whathowhy.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"hide","padding":18,"offset":12,"onmobile":true},"copycode":{"enable":true,"show_result":true,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="Java 开发人员在构建高并发应用的时候，大部分都会依赖多线程进行开发，而在 Java 中，线程的启动、调度、销毁是由操作系统来执行的，使用成本很高，我们认为这是一种重量级的线程。Java 虚拟线程被 JEP425 提议作为预览功能，并在 JDK 19 中发布，它是一种轻量级线程，不与操作系统线程直接绑定，使用虚拟线程能够大大减少编写、维护和观察高吞吐量并发程序的工作量">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Java Virtual Threads">
+<meta property="og:url" content="https://whathowhy.com/2023/03/20/JavaVirtualThreads/index.html">
+<meta property="og:site_name" content="8lovelife&#39;s life">
+<meta property="og:description" content="Java 开发人员在构建高并发应用的时候，大部分都会依赖多线程进行开发，而在 Java 中，线程的启动、调度、销毁是由操作系统来执行的，使用成本很高，我们认为这是一种重量级的线程。Java 虚拟线程被 JEP425 提议作为预览功能，并在 JDK 19 中发布，它是一种轻量级线程，不与操作系统线程直接绑定，使用虚拟线程能够大大减少编写、维护和观察高吞吐量并发程序的工作量">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/photos/52.png">
+<meta property="og:image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/JVM/virtualthread.png">
+<meta property="article:published_time" content="2023-03-20T11:00:00.000Z">
+<meta property="article:modified_time" content="2024-11-24T15:09:32.166Z">
+<meta property="article:author" content="Mark">
+<meta property="article:tag" content="Java">
+<meta property="article:tag" content="多线程">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/photos/52.png">
+
+<link rel="canonical" href="https://whathowhy.com/2023/03/20/JavaVirtualThreads/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>Java Virtual Threads | 8lovelife's life</title>
+  
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-MSKY7FDVPG"></script>
+    <script>
+      if (CONFIG.hostname === location.hostname) {
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-MSKY7FDVPG');
+      }
+    </script>
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">8lovelife's life</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">M&M</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://whathowhy.com/2023/03/20/JavaVirtualThreads/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/avatar_what.png">
+      <meta itemprop="name" content="Mark">
+      <meta itemprop="description" content="Stay Hungry, Stay Foolish.">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="8lovelife's life">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Java Virtual Threads
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2023-03-20 19:00:00" itemprop="dateCreated datePublished" datetime="2023-03-20T19:00:00+08:00">2023-03-20</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2024-11-24 23:09:32" itemprop="dateModified" datetime="2024-11-24T23:09:32+08:00">2024-11-24</time>
+              </span>
+
+          <br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="far fa-file-word"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>1.9k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="far fa-clock"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              <span>7 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <img src="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/photos/52.png" class="full-image" />
+
+<p>Java 开发人员在构建高并发应用的时候，大部分都会依赖多线程进行开发，而在 Java 中，线程的启动、调度、销毁是由操作系统来执行的，使用成本很高，我们认为这是一种重量级的线程。Java 虚拟线程被 JEP425 提议作为预览功能，并在 JDK 19 中发布，它是一种轻量级线程，不与操作系统线程直接绑定，使用虚拟线程能够大大减少编写、维护和观察高吞吐量并发程序的工作量</p>
+<span id="more"></span>
+
+<h1 id="Little’-Law"><a href="#Little’-Law" class="headerlink" title="Little’ Law"></a>Little’ Law</h1><p>利特尔定律可以根据系统中项目的平均等待时间和每单位到达系统中的平均项目数量，来确定排队系统中的项目个数，公式如下</p>
+<p>$L &#x3D; λ * W$</p>
+<ul>
+<li>L：排队系统中的项目个数</li>
+<li>λ：每单位到达系统中的平均项目数</li>
+<li>W：项目的平均等待时间</li>
+</ul>
+<p>服务器应用的扩展性受制于 Little’ Law 的约束，利特尔定律对应到服务器中的性能指标包括：响应时间、吞吐量、并发任务数，即</p>
+<p>$并发任务数 &#x3D; 吞吐量 * 响应时间$</p>
+<p>假设系统的响应时间为 200ms，如果想要提高系统的吞吐量，公式给到的最直观的做法是提高系统的并发任务数，如何提高系统的并发数？最简单的做法是每个任务分配一个线程来处理。文章开始已经提到了 Java 中的线程是非常昂贵的，虽然池化线程可以降低线程创建、启动成本，但线程的数量仍然是有限的，并且每个线程的创建大概需要占用 2M 的内存，用于保存线程上下文，调用栈信息等</p>
+<h2 id="异步编程"><a href="#异步编程" class="headerlink" title="异步编程"></a>异步编程</h2><p>线程在处理 I&#x2F;O 等待的场景时会阻塞等待，在这期间的线程处于“无事可做”的状态，只有等到 I&#x2F;O 返回结果，线程才会继续处理。因此我们可以让阻塞等待中的线程去处理其他的任务，这样可以提升线程的利用率，从而提高系统的吞吐量。异步编程可以在 I&#x2F;O 等待的地方，释放这些阻塞的线程，从而去处理其他任务，当 I&#x2F;O 返回结果的时候，线程再去处理响应结果，但是异步编程会打破编码的顺序性，因为请求的任务线程和处理 I&#x2F;O 结果的线程，不属于同一个线程，这种编码风格使代码难于理解，并且线程栈信息的不连续，也导致代码难以调试，遇到问题更难定位</p>
+<h3 id="async-await"><a href="#async-await" class="headerlink" title="async&#x2F;await"></a>async&#x2F;await</h3><p>通过使用 async&#x2F;await 语法方式，可以让编写的异步代码上下文有序，但它的结构与线程分开，需要通过其他构造形式将线程引入平台及依赖的工具包，所属生态适用需要花费很长的时间，与平台线程的绑定不够优雅</p>
+<h1 id="虚拟线程"><a href="#虚拟线程" class="headerlink" title="虚拟线程"></a>虚拟线程</h1><p>虚拟线程是一种轻量级线程，它是一种用户模式线程，类似于 GoLang 中的协程。在早期的 Java 版本中，用户模式线程被称为 “green threads”，绿色线程出现在操作系统线程还未成熟阶段，那时候大多是单核系统，所有的绿色线程共享一个 OS Thread（ M:1 scheduling）。Java 中的线程实现被称为平台线程，它是对系统线程的一比一包装（1:1 scheduling），虚拟线程与平台线程的关系则为 M:N 映射，M是大量的虚拟线程，N是少量的平台线程。虚拟线程运行在平台线程之上，当执行的任务被阻塞，虚拟线程对象会被从线程栈中拷贝到堆中，释放平台线程，当任务阻塞完成，虚拟线程会重新装载到平台线程中，如下两种情况中，虚拟线程不会释放平台线程</p>
+<ul>
+<li>任务执行在 asynchronized 块或方法中</li>
+<li>调用外部方法或 native 方法（JNI）</li>
+</ul>
+<p><img src="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/JVM/virtualthread.png" alt="imag"></p>
+<p>由于虚拟线程是轻量级的，所以我们可以为每一个任务分配一个独立的虚拟线程，从而提高系统的吞吐量</p>
+<h1 id="HTTP-SERVER-基准测试"><a href="#HTTP-SERVER-基准测试" class="headerlink" title="HTTP SERVER 基准测试"></a>HTTP SERVER 基准测试</h1><p>我们使用 OpenJDK11 自带的 HttpServer 来构建简单的 WEB 服务器功能，分别采用单线程（V1）、固定线程池（V2)、无界线程池（V3）和 虚拟线程（V4）的方式实现</p>
+<h2 id="V1（单线程）"><a href="#V1（单线程）" class="headerlink" title="V1（单线程）"></a>V1（单线程）</h2><p>单线程模式下基本没有吞吐量</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">wrk -t100 -c200 -d30 http://localhost:18080/foo</span><br><span class="line"></span><br><span class="line">Running 30s test @ http://localhost:18080/foo</span><br><span class="line">  100 threads and 200 connections</span><br><span class="line">  Thread Stats   Avg      Stdev     Max   +/- Stdev</span><br><span class="line">    Latency     1.03s   554.29ms   1.84s    55.56%</span><br><span class="line">    Req/Sec     0.59      1.28     5.00     85.81%</span><br><span class="line">  148 requests in 30.08s, 13.88KB read</span><br><span class="line">  Socket errors: connect 0, read 0, write 0, timeout 139</span><br><span class="line">Requests/sec:      4.92</span><br><span class="line">Transfer/sec:     472.36B</span><br></pre></td></tr></table></figure>
+
+<h2 id="V2（固定数量线程池）"><a href="#V2（固定数量线程池）" class="headerlink" title="V2（固定数量线程池）"></a>V2（固定数量线程池）</h2><p>使用固定数量线程池的情况下，吞吐量也不高，所以在IO密集型任务下，线程池设置为 CPU核心数 * 2 不靠谱</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">固定 10 个线程数</span></span><br><span class="line">wrk -t100 -c200 -d30 http://localhost:28080/foo</span><br><span class="line"></span><br><span class="line">Running 30s test @ http://localhost:28080/foo</span><br><span class="line">  100 threads and 200 connections</span><br><span class="line">  Thread Stats   Avg      Stdev     Max   +/- Stdev</span><br><span class="line">    Latency     1.03s   522.86ms   1.84s    55.56%</span><br><span class="line">    Req/Sec     0.70      1.37     6.00     88.58%</span><br><span class="line">  1480 requests in 30.07s, 138.75KB read</span><br><span class="line">  Socket errors: connect 0, read 29, write 0, timeout 1390</span><br><span class="line">Requests/sec:     49.22</span><br><span class="line">Transfer/sec:      4.61KB</span><br></pre></td></tr></table></figure>
+
+<h2 id="V3（无界线程池）"><a href="#V3（无界线程池）" class="headerlink" title="V3（无界线程池）"></a>V3（无界线程池）</h2><p>每个请求一个线程，这种情况下的吞吐量比 V1、V2 好多了</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">wrk -t100 -c200 -d30 http://localhost:38080/foo</span><br><span class="line"></span><br><span class="line">Running 30s test @ http://localhost:38080/foo</span><br><span class="line">  100 threads and 200 connections</span><br><span class="line">  Thread Stats   Avg      Stdev     Max   +/- Stdev</span><br><span class="line">    Latency   220.58ms   19.78ms 279.31ms   66.81%</span><br><span class="line">    Req/Sec     8.80      1.66    20.00     85.00%</span><br><span class="line">  27116 requests in 30.11s, 2.49MB read</span><br><span class="line">  Socket errors: connect 0, read 33, write 0, timeout 0</span><br><span class="line">Requests/sec:    900.67</span><br><span class="line">Transfer/sec:     84.54KB</span><br></pre></td></tr></table></figure>
+
+<p>我们来试试用更强的压力来进行测试</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">wrk -t2000 -c2000 -d30 http://localhost:38080/foo</span><br><span class="line">Running 30s test @ http://localhost:38080/foo</span><br><span class="line">  2000 threads and 2000 connections</span><br><span class="line">  Thread Stats   Avg      Stdev     Max   +/- Stdev</span><br><span class="line">    Latency   254.27ms  175.67ms   1.70s    95.29%</span><br><span class="line">    Req/Sec     4.02      1.14    10.00     93.65%</span><br><span class="line">  98947 requests in 30.11s, 9.06MB read</span><br><span class="line">  Socket errors: connect 0, read 17267, write 1, timeout 709</span><br><span class="line">Requests/sec:   3286.10</span><br><span class="line">Transfer/sec:    308.09KB</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">CPU、内存使用情况</span></span><br><span class="line">CPU %     MEM USAGE / LIMIT   MEM %</span><br><span class="line">32.60%    340.4MiB / 512MiB   66.48%</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+<h2 id="V4（虚拟线程）"><a href="#V4（虚拟线程）" class="headerlink" title="V4（虚拟线程）"></a>V4（虚拟线程）</h2><p>我们来看看虚拟线程表现如何</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">wrk -t2000 -c2000 -d30 http://localhost:48080/foo</span><br><span class="line">Running 30s test @ http://localhost:48080/foo</span><br><span class="line">  2000 threads and 2000 connections</span><br><span class="line">  Thread Stats   Avg      Stdev     Max   +/- Stdev</span><br><span class="line">    Latency   237.31ms  121.62ms   1.48s    96.29%</span><br><span class="line">    Req/Sec     4.10      1.03    10.00     80.37%</span><br><span class="line">  143827 requests in 30.11s, 13.17MB read</span><br><span class="line">  Socket errors: connect 0, read 31992, write 26, timeout 0</span><br><span class="line">Requests/sec:   4776.83</span><br><span class="line">Transfer/sec:    447.83KB</span><br><span class="line"></span><br><span class="line">CPU %     MEM USAGE / LIMIT   MEM %</span><br><span class="line">34.10%    161.8MiB / 512MiB   31.61%</span><br></pre></td></tr></table></figure>
+<p>测试数据显示吞吐量、内存使用情况都优于 V3 版本</p>
+<h1 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h1><p><a target="_blank" rel="noopener" href="https://openjdk.org/jeps/436">JEP 436</a></p>
+<h1 id="附录"><a href="#附录" class="headerlink" title="附录"></a>附录</h1><h2 id="获取-JVM-环境的堆和栈的大小"><a href="#获取-JVM-环境的堆和栈的大小" class="headerlink" title="获取 JVM 环境的堆和栈的大小"></a>获取 JVM 环境的堆和栈的大小</h2><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">java -XX:+PrintFlagsFinal -version | grep -Ei &quot;maxheapsize|maxram|stacksize&quot;</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">MaxHeapSize = 134217728 <span class="comment"># 最大堆内存 134M</span></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">MaxRAMPercentage = 25.000000 <span class="comment"># 最大堆占 RAM 内存大小的 25%</span></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">ThreadStackSize = 2048 <span class="comment"># 栈大小 2M</span></span></span><br></pre></td></tr></table></figure>
+
+<h2 id="获取容器CPU、内存、IO等使用情况"><a href="#获取容器CPU、内存、IO等使用情况" class="headerlink" title="获取容器CPU、内存、IO等使用情况"></a>获取容器CPU、内存、IO等使用情况</h2><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">docker stats &#123;container_id&#125;</span><br></pre></td></tr></table></figure>
+
+<h2 id="获取-堆内存、GC-情况"><a href="#获取-堆内存、GC-情况" class="headerlink" title="获取 堆内存、GC 情况"></a>获取 堆内存、GC 情况</h2><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">jstat -gcutil &#123;pid&#125; &#123;interval&#125; &#123;count&#125;</span><br></pre></td></tr></table></figure>
+
+<h2 id="测试用例源码"><a href="#测试用例源码" class="headerlink" title="测试用例源码"></a>测试用例源码</h2><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">HttpServer</span> <span class="variable">server</span> <span class="operator">=</span> HttpServer.create(<span class="keyword">new</span> <span class="title class_">InetSocketAddress</span>(<span class="number">8080</span>), <span class="number">0</span>);</span><br><span class="line">server.createContext(<span class="string">&quot;/foo&quot;</span>, (<span class="keyword">var</span> t) -&gt; &#123;</span><br><span class="line">    <span class="keyword">try</span> (<span class="type">OutputStream</span> <span class="variable">os</span> <span class="operator">=</span> t.getResponseBody()) &#123;</span><br><span class="line">        Thread.sleep(<span class="number">200</span>);</span><br><span class="line">        <span class="type">byte</span>[] response = <span class="string">&quot;Hello World!&quot;</span>.getBytes();</span><br><span class="line">        t.sendResponseHeaders(<span class="number">200</span>, response.length);</span><br><span class="line">        os.write(response);</span><br><span class="line">    &#125; <span class="keyword">catch</span> (Exception e) &#123;</span><br><span class="line">        e.printStackTrace();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;);</span><br><span class="line"><span class="comment">// server.setExecutor(Executors.newFixedThreadPool(1)); // V1</span></span><br><span class="line"><span class="comment">// server.setExecutor(Executors.newFixedThreadPool(10)); // V2</span></span><br><span class="line"><span class="comment">// server.setExecutor(Executors.newCachedThreadPool()); // V3</span></span><br><span class="line">server.setExecutor(Executors.newVirtualThreadPerTaskExecutor()); <span class="comment">// V4</span></span><br><span class="line">server.start();</span><br></pre></td></tr></table></figure>
+
+<h2 id="docker-compose-yml"><a href="#docker-compose-yml" class="headerlink" title="docker-compose.yml"></a>docker-compose.yml</h2><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br></pre></td><td class="code"><pre><span class="line">version: &#x27;3.4&#x27;</span><br><span class="line"></span><br><span class="line">services:</span><br><span class="line">  webserver_v1:</span><br><span class="line">    build:</span><br><span class="line">        context: .</span><br><span class="line">        dockerfile: v1.Dockerfile</span><br><span class="line">    ports:</span><br><span class="line">      - 18080:8080  </span><br><span class="line">    deploy:</span><br><span class="line">      resources:</span><br><span class="line">        limits:</span><br><span class="line">          cpus: &#x27;2&#x27;</span><br><span class="line">          memory: 512M</span><br><span class="line"></span><br><span class="line">  webserver_v2:</span><br><span class="line">    build:</span><br><span class="line">        context: .</span><br><span class="line">        dockerfile: v2.Dockerfile</span><br><span class="line">    ports:</span><br><span class="line">      - 28080:8080  </span><br><span class="line">    deploy:</span><br><span class="line">      resources:</span><br><span class="line">        limits:</span><br><span class="line">          cpus: &#x27;2&#x27;</span><br><span class="line">          memory: 512M          </span><br><span class="line"></span><br><span class="line">  webserver_v3:</span><br><span class="line">    build:</span><br><span class="line">        context: .</span><br><span class="line">        dockerfile: v3.Dockerfile</span><br><span class="line">    ports:</span><br><span class="line">      - 38080:8080      </span><br><span class="line">    deploy:</span><br><span class="line">      resources:</span><br><span class="line">        limits:</span><br><span class="line">          cpus: &#x27;2&#x27;</span><br><span class="line">          memory: 512M          </span><br><span class="line"></span><br><span class="line">  webserver_v4:</span><br><span class="line">    build:</span><br><span class="line">        context: .</span><br><span class="line">        dockerfile: v4.Dockerfile</span><br><span class="line">    ports:</span><br><span class="line">      - 48080:8080      </span><br><span class="line">    deploy:</span><br><span class="line">      resources:</span><br><span class="line">        limits:</span><br><span class="line">          cpus: &#x27;2&#x27;</span><br><span class="line">          memory: 512M</span><br></pre></td></tr></table></figure>
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/Java/" rel="tag"># Java</a>
+              <a href="/tags/%E5%A4%9A%E7%BA%BF%E7%A8%8B/" rel="tag"># 多线程</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2023/03/02/DecoratorDesign/" rel="prev" title="设计模式-装饰者">
+      <i class="fa fa-chevron-left"></i> 设计模式-装饰者
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2023/03/24/VisitorDesign/" rel="next" title="设计模式-访问者模式">
+      设计模式-访问者模式 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="gitalk-container"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#Little%E2%80%99-Law"><span class="nav-number">1.</span> <span class="nav-text">Little’ Law</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%BC%82%E6%AD%A5%E7%BC%96%E7%A8%8B"><span class="nav-number">1.1.</span> <span class="nav-text">异步编程</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#async-await"><span class="nav-number">1.1.1.</span> <span class="nav-text">async&#x2F;await</span></a></li></ol></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E8%99%9A%E6%8B%9F%E7%BA%BF%E7%A8%8B"><span class="nav-number">2.</span> <span class="nav-text">虚拟线程</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#HTTP-SERVER-%E5%9F%BA%E5%87%86%E6%B5%8B%E8%AF%95"><span class="nav-number">3.</span> <span class="nav-text">HTTP SERVER 基准测试</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#V1%EF%BC%88%E5%8D%95%E7%BA%BF%E7%A8%8B%EF%BC%89"><span class="nav-number">3.1.</span> <span class="nav-text">V1（单线程）</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#V2%EF%BC%88%E5%9B%BA%E5%AE%9A%E6%95%B0%E9%87%8F%E7%BA%BF%E7%A8%8B%E6%B1%A0%EF%BC%89"><span class="nav-number">3.2.</span> <span class="nav-text">V2（固定数量线程池）</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#V3%EF%BC%88%E6%97%A0%E7%95%8C%E7%BA%BF%E7%A8%8B%E6%B1%A0%EF%BC%89"><span class="nav-number">3.3.</span> <span class="nav-text">V3（无界线程池）</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#V4%EF%BC%88%E8%99%9A%E6%8B%9F%E7%BA%BF%E7%A8%8B%EF%BC%89"><span class="nav-number">3.4.</span> <span class="nav-text">V4（虚拟线程）</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%8F%82%E8%80%83"><span class="nav-number">4.</span> <span class="nav-text">参考</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E9%99%84%E5%BD%95"><span class="nav-number">5.</span> <span class="nav-text">附录</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%8E%B7%E5%8F%96-JVM-%E7%8E%AF%E5%A2%83%E7%9A%84%E5%A0%86%E5%92%8C%E6%A0%88%E7%9A%84%E5%A4%A7%E5%B0%8F"><span class="nav-number">5.1.</span> <span class="nav-text">获取 JVM 环境的堆和栈的大小</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%8E%B7%E5%8F%96%E5%AE%B9%E5%99%A8CPU%E3%80%81%E5%86%85%E5%AD%98%E3%80%81IO%E7%AD%89%E4%BD%BF%E7%94%A8%E6%83%85%E5%86%B5"><span class="nav-number">5.2.</span> <span class="nav-text">获取容器CPU、内存、IO等使用情况</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%8E%B7%E5%8F%96-%E5%A0%86%E5%86%85%E5%AD%98%E3%80%81GC-%E6%83%85%E5%86%B5"><span class="nav-number">5.3.</span> <span class="nav-text">获取 堆内存、GC 情况</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%B5%8B%E8%AF%95%E7%94%A8%E4%BE%8B%E6%BA%90%E7%A0%81"><span class="nav-number">5.4.</span> <span class="nav-text">测试用例源码</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#docker-compose-yml"><span class="nav-number">5.5.</span> <span class="nav-text">docker-compose.yml</span></a></li></ol></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="Mark"
+      src="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/avatar_what.png">
+  <p class="site-author-name" itemprop="name">Mark</p>
+  <div class="site-description" itemprop="description">Stay Hungry, Stay Foolish.</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">64</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">18</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">28</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://space.bilibili.com/1268283" title="Bilibili → https:&#x2F;&#x2F;space.bilibili.com&#x2F;1268283" rel="noopener" target="_blank"><i class="fas fa-video fa-fw"></i>Bilibili</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://www.youtube.com/channel/UCgo_k4UEkGUNrG-resCDVKw" title="YouTube → https:&#x2F;&#x2F;www.youtube.com&#x2F;channel&#x2F;UCgo_k4UEkGUNrG-resCDVKw" rel="noopener" target="_blank"><i class="fab fa-youtube fa-fw"></i>YouTube</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 2015 – 
+  <span itemprop="copyrightYear">2024</span>
+  <span class="with-love">
+    <i class="fas fa-gamepad"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Mark</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-chart-area"></i>
+    </span>
+    <span title="站点总字数">67k</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+    <span title="站点阅读时长">4:02</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://mist.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a> 强力驱动
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.css">
+
+<script>
+NexT.utils.loadComments(document.querySelector('#gitalk-container'), () => {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.js', () => {
+    var gitalk = new Gitalk({
+      clientID    : '1d971a932df33dd64e19',
+      clientSecret: 'a51b84396586902b536b1b26a917003af50ea152',
+      repo        : 'hexo-comments',
+      owner       : 'dreamming',
+      admin       : ['dreamming'],
+      id          : '2b72abfdcc556ff5c4a6fbe14c608b98',
+        language: 'zh-CN',
+      distractionFreeMode: false
+    });
+    gitalk.render('gitalk-container');
+  }, window.Gitalk);
+});
+</script>
+
+</body>
+</html>

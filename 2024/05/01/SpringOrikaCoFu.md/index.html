@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.4.2">
+
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-N9NJ5HB');</script>
+<!-- End Google Tag Manager -->
+
+<!-- Google Tag Manager (noscript) -->
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-N9NJ5HB"
+height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+<!-- End Google Tag Manager (noscript) -->
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"whathowhy.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"hide","padding":18,"offset":12,"onmobile":true},"copycode":{"enable":true,"show_result":true,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="使用了很多年的 Java Bean 对象映射框架 Orika，最近运行报错了，异常出现在某些特定的使用场景下，具体场景在 Spring 容器中使用 CompletableFuture，异步任务中进行一些 Java Bean 的对象映射，异常信息： 1Caused by: ma.glasnost.orika.impl.generator.CompilerStrategy$SourceCodeGe">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Orika ClassLoader">
+<meta property="og:url" content="https://whathowhy.com/2024/05/01/SpringOrikaCoFu.md/index.html">
+<meta property="og:site_name" content="8lovelife&#39;s life">
+<meta property="og:description" content="使用了很多年的 Java Bean 对象映射框架 Orika，最近运行报错了，异常出现在某些特定的使用场景下，具体场景在 Spring 容器中使用 CompletableFuture，异步任务中进行一些 Java Bean 的对象映射，异常信息： 1Caused by: ma.glasnost.orika.impl.generator.CompilerStrategy$SourceCodeGe">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/photos/38.png">
+<meta property="article:published_time" content="2024-05-01T08:00:00.000Z">
+<meta property="article:modified_time" content="2024-11-24T15:09:32.166Z">
+<meta property="article:author" content="Mark">
+<meta property="article:tag" content="Java">
+<meta property="article:tag" content="Spring">
+<meta property="article:tag" content="多线程">
+<meta property="article:tag" content="JVM">
+<meta property="article:tag" content="异步">
+<meta property="article:tag" content="Orika">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/photos/38.png">
+
+<link rel="canonical" href="https://whathowhy.com/2024/05/01/SpringOrikaCoFu.md/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>Orika ClassLoader | 8lovelife's life</title>
+  
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-MSKY7FDVPG"></script>
+    <script>
+      if (CONFIG.hostname === location.hostname) {
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-MSKY7FDVPG');
+      }
+    </script>
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">8lovelife's life</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">M&M</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://whathowhy.com/2024/05/01/SpringOrikaCoFu.md/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/avatar_what.png">
+      <meta itemprop="name" content="Mark">
+      <meta itemprop="description" content="Stay Hungry, Stay Foolish.">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="8lovelife's life">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Orika ClassLoader
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2024-05-01 16:00:00" itemprop="dateCreated datePublished" datetime="2024-05-01T16:00:00+08:00">2024-05-01</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2024-11-24 23:09:32" itemprop="dateModified" datetime="2024-11-24T23:09:32+08:00">2024-11-24</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/JVM/" itemprop="url" rel="index"><span itemprop="name">JVM</span></a>
+                </span>
+            </span>
+
+          <br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="far fa-file-word"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>2k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="far fa-clock"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              <span>7 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <img src="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/photos/38.png" class="full-image" />
+
+<p>使用了很多年的 Java Bean 对象映射框架 Orika，最近运行报错了，异常出现在某些特定的使用场景下，具体场景在 Spring 容器中使用 CompletableFuture，异步任务中进行一些 Java Bean 的对象映射，异常信息：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Caused by: ma.glasnost.orika.impl.generator.CompilerStrategy$SourceCodeGenerationException: Error compiling ma.glasnost.orika.generated.Orika_XXX_YYY_Mapper383167261886761$<span class="number">8</span></span><br></pre></td></tr></table></figure>
+<p>本篇博客将分析记录 Orika 使用异常产生的原因，同时回顾一些相关知识</p>
+<span id="more"></span>
+
+<h1 id="ClassLoader"><a href="#ClassLoader" class="headerlink" title="ClassLoader"></a>ClassLoader</h1><p>在程序运行中，ClassLoader 负责动态的按需将字节码加载到 JVM 中，字节码可以是 .java 文件编译后获得的 .class 文件，程序也可以按照字节码的定义规范直接生成字节码，比如通过 ASM，Javassis 字节码生成工具直接编辑字节码。Java 提供了一些内置的 ClassLoader 类型，用户也可以按需定制自己的 ClassLoader</p>
+<ol>
+<li><p>Buildin ClassLoader</p>
+<p> Java 提供了一些内置的 ClassLoader 类型</p>
+<ul>
+<li><p>BootstrapClassLoader</p>
+<p>  由 C++ 编写，负责启动 JVM 以及加载 Java 应用程序所需的核心类，是最顶层的类加载器，在 Java 中的输出为 NULL</p>
+  <figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">ClassLoader</span> <span class="variable">hashMapListClassLoader</span> <span class="operator">=</span> HashMap.class.getClassLoader();</span><br><span class="line">System.out.println(<span class="string">&quot;HashMap ClassLoader: &quot;</span> + hashMapListClassLoader);</span><br><span class="line"></span><br><span class="line"><span class="comment">// 输出</span></span><br><span class="line">HashMap ClassLoader: <span class="literal">null</span></span><br></pre></td></tr></table></figure>
+</li>
+<li><p>PlatformClassLoader </p>
+<p>  负责加载一些核心类的扩展包，比如供第三方实现的扩展包，如：java.sql.Driver</p>
+  <figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">ClassLoader</span> <span class="variable">driverManagerClassLoader</span> <span class="operator">=</span> DriverManager.class.getClassLoader();</span><br><span class="line">System.out.println(<span class="string">&quot;DriverManager ClassLoader: &quot;</span> + driverManagerClassLoader);</span><br><span class="line"></span><br><span class="line"><span class="comment">// 输出</span></span><br><span class="line">DriverManager ClassLoader: jdk.internal.loader.ClassLoaders$PlatformClassLoader@5ca881b5</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>SystemClassLoader</p>
+<p>  用于加载应用级别的类，加载器会从 CLASSPATH（ -classpath, or -cp ） 路径下查找所需加载的类文件</p>
+  <figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">ClassLoader</span> <span class="variable">orikaClassLoader</span> <span class="operator">=</span> OrikaClassLoaderTest.class.getClassLoader();</span><br><span class="line">System.out.println(<span class="string">&quot;OrikaClassLoaderTest ClassLoader: &quot;</span> + orikaClassLoader);</span><br><span class="line"></span><br><span class="line"><span class="comment">// 输出</span></span><br><span class="line">OrikaClassLoaderTest ClassLoader: jdk.internal.loader.ClassLoaders$AppClassLoader@5ffd2b27</span><br></pre></td></tr></table></figure></li>
+</ul>
+</li>
+<li><p>Custom ClassLoader</p>
+<p> 用户可以按需定制自己的 ClassLoader</p>
+<ul>
+<li>从远程服务器、自定义路径下加载字节码（如：Spring 中的 LaunchedURLClassLoader）</li>
+<li>实现同名同包的不同 Class 定义（如：Tomcat 中的 WebappX ClassLoader）</li>
+</ul>
+</li>
+<li><p>加载模块</p>
+<p> Java SE 17 中各内置加载器负责加载的模块</p>
+<table>
+<thead>
+<tr>
+<th align="left">BootstrapClassLoader</th>
+<th align="left">PlatformClassLoader</th>
+<th align="left">SystemClassLoader</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">java.base</td>
+<td align="left">java.compiler</td>
+<td align="left">jdk.attach</td>
+</tr>
+<tr>
+<td align="left">java.datatransfer</td>
+<td align="left">java.net.http</td>
+<td align="left">jdk.compiler</td>
+</tr>
+<tr>
+<td align="left">java.desktop</td>
+<td align="left">java.scripting</td>
+<td align="left">jdk.editpad</td>
+</tr>
+<tr>
+<td align="left">java.instrument</td>
+<td align="left">java.security.jgss</td>
+<td align="left">jdk.internal.ed</td>
+</tr>
+<tr>
+<td align="left">java.logging</td>
+<td align="left">java.smartcardio</td>
+<td align="left">jdk.internal.jvmstat</td>
+</tr>
+<tr>
+<td align="left">java.management</td>
+<td align="left">java.sql</td>
+<td align="left">jdk.internal.le</td>
+</tr>
+<tr>
+<td align="left">java.management.rmi</td>
+<td align="left">java.sql.rowset</td>
+<td align="left">jdk.internal.opt</td>
+</tr>
+<tr>
+<td align="left">java.naming</td>
+<td align="left">java.transaction.xa</td>
+<td align="left">jdk.jartool</td>
+</tr>
+<tr>
+<td align="left">java.prefs</td>
+<td align="left">java.xml.crypto</td>
+<td align="left">jdk.javadoc</td>
+</tr>
+<tr>
+<td align="left">java.rmi</td>
+<td align="left">jdk.accessibility</td>
+<td align="left">jdk.jconsole</td>
+</tr>
+<tr>
+<td align="left">java.security.sasl</td>
+<td align="left">jdk.charsets</td>
+<td align="left">jdk.jdeps</td>
+</tr>
+<tr>
+<td align="left">java.xml</td>
+<td align="left">jdk.crypto.cryptoki</td>
+<td align="left">jdk.jdi</td>
+</tr>
+<tr>
+<td align="left">jdk.jfr</td>
+<td align="left">jdk.crypto.ec</td>
+<td align="left">jdk.jdwp.agent</td>
+</tr>
+<tr>
+<td align="left">jdk.management</td>
+<td align="left">jdk.dynalink</td>
+<td align="left">jdk.jlink</td>
+</tr>
+<tr>
+<td align="left">jdk.management.agent</td>
+<td align="left">jdk.httpserver</td>
+<td align="left">jdk.jpackage</td>
+</tr>
+<tr>
+<td align="left">jdk.management.jfr</td>
+<td align="left">jdk.jsobject</td>
+<td align="left">jdk.jshell</td>
+</tr>
+<tr>
+<td align="left">jdk.naming.rmi</td>
+<td align="left">jdk.localedata</td>
+<td align="left">jdk.jstatd</td>
+</tr>
+<tr>
+<td align="left">jdk.net</td>
+<td align="left">jdk.naming.dns</td>
+<td align="left">jdk.random</td>
+</tr>
+<tr>
+<td align="left">jdk.nio.mapmode</td>
+<td align="left">jdk.security.auth</td>
+<td align="left">jdk.unsupported.desktop</td>
+</tr>
+<tr>
+<td align="left">jdk.sctp</td>
+<td align="left">jdk.security.jgss</td>
+<td align="left"></td>
+</tr>
+<tr>
+<td align="left">jdk.unsupported</td>
+<td align="left">jdk.xml.dom</td>
+<td align="left"></td>
+</tr>
+<tr>
+<td align="left"></td>
+<td align="left">jdk.zipfs</td>
+<td align="left"></td>
+</tr>
+</tbody></table>
+</li>
+</ol>
+<h2 id="ClassLoader-准则"><a href="#ClassLoader-准则" class="headerlink" title="ClassLoader 准则"></a>ClassLoader 准则</h2><ol>
+<li><p>委托机制</p>
+<p> 当前 ClassLoader 加载 Class 调用  java.lang.ClassLoader.loadClass() 方法，首先会确定此 Class 是否已经被加载，避免重复加载，如果 Class 未被加载过，则会委托 Parent ClassLoader 进行此 Class 的加载 java.lang.ClassLoader.loadClass()，递归进行，一直到 loadClass() 成功返回 Class。如果未成功返回 Class，则 Child ClassLoader 会调用 java.net.URLClassLoader.findClass() 查找字节码并通过 defineClass() 方法将字节码转换成 Class 对象，成功则返回，否则加载失败抛出 java.lang.NoClassDefFoundError 或 java.lang.ClassNotFoundException 异常。核心方法：</p>
+ <figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">java.lang.ClassLoader.loadClass()</span><br><span class="line">java.net.URLClassLoader.findClass()</span><br><span class="line">java.net.URLClassLoader.defineClass()</span><br><span class="line"></span><br><span class="line">类加载器的父子关系: </span><br><span class="line">CustomClassLoader -&gt; SystemClassLoader -&gt; SystemClassLoader -&gt; BootstrapClassLoader</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>类的可见性</p>
+<p> Child ClassLoader 可以看到所有 Parent ClassLoader 加载的 Class，相反的 Parent ClassLoader 看不到 Child ClassLoader 所加载的 Class</p>
+</li>
+<li><p>类的唯一性</p>
+<p> 确保 Class 不被重复加载，由于 Class 加载的委托机制，很容易保证 Class 的唯一性</p>
+</li>
+</ol>
+<h2 id="SPI"><a href="#SPI" class="headerlink" title="SPI"></a>SPI</h2><p>SPI 是 Service Provider Interface 的简称，用于方便的扩展第三方实现，此功能包含在 Java SE 6 及以后的版本中。最让人熟知的是 java.sql.Driver 接口，通过 ServiceLoader 方法就可以加载 Driver 的实现，如：mysql driver 、clickhouse driver 等。先来看下面的例子：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">ClassLoader</span> <span class="variable">serviceLoaderClassLoader</span> <span class="operator">=</span> ServiceLoader.class.getClassLoader();</span><br><span class="line"><span class="type">ClassLoader</span> <span class="variable">mysqlClassLoader</span> <span class="operator">=</span> com.mysql.cj.jdbc.Driver.class.getClassLoader();</span><br><span class="line"><span class="type">ClassLoader</span> <span class="variable">sqlClassLoader</span> <span class="operator">=</span> Driver.class.getClassLoader();</span><br><span class="line">ServiceLoader&lt;Driver&gt; loadedDrivers = ServiceLoader.load(java.sql.Driver.class);</span><br><span class="line"><span class="type">Driver</span> <span class="variable">driver</span> <span class="operator">=</span> loadedDrivers.findFirst().get();</span><br><span class="line">System.out.println(<span class="string">&quot;Loaded Driver is &quot;</span> + driver);</span><br><span class="line">System.out.println(<span class="string">&quot;Sql Driver ClassLoader is &quot;</span> + sqlClassLoader);</span><br><span class="line">System.out.println(<span class="string">&quot;Mysql Driver ClassLoader is &quot;</span> + mysqlClassLoader);</span><br><span class="line">System.out.println(<span class="string">&quot;ServiceLoader ClassLoader: &quot;</span> + serviceLoaderClassLoader);</span><br><span class="line"></span><br><span class="line"><span class="comment">// 输出</span></span><br><span class="line">Loaded Driver is com.mysql.cj.jdbc.Driver@34a245ab</span><br><span class="line">Sql Driver ClassLoader is jdk.internal.loader.ClassLoaders$PlatformClassLoader@24d46ca6</span><br><span class="line">Mysql Driver ClassLoader is jdk.internal.loader.ClassLoaders$AppClassLoader@5ffd2b27</span><br><span class="line">ServiceLoader ClassLoader: <span class="literal">null</span></span><br></pre></td></tr></table></figure>
+
+<p>Mysql Driver 通过 ServiceLoader 的 load 方法被成功加载，但这里是不是违背了 ClassLoader 准则中类的可见性？ServiceLoader.class 是由 BootstrapClassLoader 加载的，java.sql.Driver.class 是由 PlatformClassLoader 加载的，com.mysql.cj.jdbc.Driver.class 是由 AppClassLoader 加载的，加载路线 BootstrapClassLoader -&gt; PlatformClassLoader -&gt; AppClassLoader，与类的可见性矛盾。如何解决 SPI 类加载可见性的矛盾？答案是：<strong>线程上下文类加载器</strong></p>
+<h2 id="线程上下文类加载器"><a href="#线程上下文类加载器" class="headerlink" title="线程上下文类加载器"></a>线程上下文类加载器</h2><p>查看 ServiceLoader#load(..) 方法的实现可以发现，ServiceLoader 使用的是线程上下文加载器来加载 SPI 实现类</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">static</span> &lt;S&gt; ServiceLoader&lt;S&gt; <span class="title function_">load</span><span class="params">(Class&lt;S&gt; service)</span> &#123;</span><br><span class="line"><span class="type">ClassLoader</span> <span class="variable">cl</span> <span class="operator">=</span> Thread.currentThread().getContextClassLoader();</span><br><span class="line"><span class="keyword">return</span> <span class="keyword">new</span> <span class="title class_">ServiceLoader</span>&lt;&gt;(Reflection.getCallerClass(), service, cl);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<hr>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">ClassLoader</span> <span class="variable">contextClassLoader</span> <span class="operator">=</span> Thread.currentThread().getContextClassLoader();</span><br><span class="line">System.out.println(<span class="string">&quot;Thread Context ClassLoader: &quot;</span> + contextClassLoader);</span><br><span class="line"></span><br><span class="line"><span class="comment">// 输出</span></span><br><span class="line">Thread Context ClassLoader: jdk.internal.loader.ClassLoaders$AppClassLoader@5ffd2b27</span><br></pre></td></tr></table></figure>
+
+<p>这里的线程上下文加载器是 SystemClassLoader 通过 SystemClassLoader 的委托机制可以成功加载 com.mysql.cj.jdbc.Driver</p>
+<h1 id="Orika"><a href="#Orika" class="headerlink" title="Orika"></a>Orika</h1><p>Orika 是一个 Java Bean 映射框架，可以快速、高效的将一个对象映射到另一个对象，使用起来也非常简单。Orika 通过生成字节码的方式使得 Java Bean 之间的映射速度与手动 setXXX 速度相当，生成字节码部分使用了 Javassist 框架</p>
+<ol>
+<li><p>使用方式</p>
+ <figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">MapperFactory</span> <span class="variable">mapperFactory</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">DefaultMapperFactory</span>.    Builder().build();</span><br><span class="line">mapperFactory.classMap(A.class, B.class)</span><br><span class="line">        .field(<span class="string">&quot;a&quot;</span>, <span class="string">&quot;b&quot;</span>)</span><br><span class="line">        .byDefault()</span><br><span class="line">        .register();</span><br><span class="line">    </span><br><span class="line"><span class="comment">// 使用 </span></span><br><span class="line"><span class="type">MapperFacade</span> <span class="variable">mapperFacade</span> <span class="operator">=</span> mapperFactory.getMapperFacade();</span><br><span class="line"><span class="type">B</span> <span class="variable">b</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">B</span>(<span class="string">&quot;B&quot;</span>);</span><br><span class="line"><span class="type">A</span> <span class="variable">a</span> <span class="operator">=</span> mapperFacade.map(b, A.class);</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>字节码生成</p>
+ <figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">JavassistCompilerStrategy#compileClass(...)&#123;</span><br><span class="line">            ...</span><br><span class="line">compiledClass = byteCodeClass.toClass(Thread.currentThread().getContextClassLoader(), <span class="built_in">this</span>.getClass().getProtectionDomain    ());</span><br><span class="line">            ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p> 在程序运行中，Javassist 会生成字节码并编译为类似如下 Class 对象，并进行 mapping 操作</p>
+ <figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">Orika_B_A_Mapper347584518546208$0</span> <span class="keyword">extends</span> <span class="title class_">ma</span>.glasnost.orika.impl.GeneratedMapperBase &#123;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">mapAtoB</span><span class="params">(java.lang.Object a, java.lang.Object b, ma.glasnost.orika.MappingContext mappingContext)</span> &#123;</span><br><span class="line"></span><br><span class="line"><span class="built_in">super</span>.mapAtoB(a, b, mappingContext);</span><br><span class="line"></span><br><span class="line"><span class="comment">// sourceType: A</span></span><br><span class="line">orika.<span class="type">A</span> <span class="variable">source</span> <span class="operator">=</span> ((orika.A)a); </span><br><span class="line"><span class="comment">// destinationType: B</span></span><br><span class="line">orika.<span class="type">B</span> <span class="variable">destination</span> <span class="operator">=</span> ((orika.B)b); </span><br><span class="line"></span><br><span class="line">destination.setB(((java.lang.String)source.getA())); </span><br><span class="line">		<span class="keyword">if</span>(customMapper != <span class="literal">null</span>) &#123; </span><br><span class="line">			 customMapper.mapAtoB(source, destination, mappingContext);</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">...</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">B_A_ObjectFactory7711776903783377242228996375$1</span> <span class="keyword">extends</span> <span class="title class_">ma</span>.glasnost.orika.impl.GeneratedObjectFactory &#123;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> Object <span class="title function_">create</span><span class="params">(Object s, ma.glasnost.orika.MappingContext mappingContext)</span> </span><br><span class="line">&#123;<span class="keyword">if</span>(s == <span class="literal">null</span>) <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">java</span>.lang.IllegalArgumentException(<span class="string">&quot;source object must be not null&quot;</span>);</span><br><span class="line"><span class="keyword">if</span> (s <span class="keyword">instanceof</span> orika.A) &#123;</span><br><span class="line">orika.<span class="type">A</span> <span class="variable">source</span> <span class="operator">=</span> (orika.A) s;</span><br><span class="line"><span class="keyword">try</span> &#123;</span><br><span class="line">    java.lang.<span class="type">String</span> <span class="variable">arg0</span> <span class="operator">=</span> <span class="literal">null</span>; </span><br><span class="line">    arg0 = ((java.lang.String)source.getA()); </span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">new</span> <span class="title class_">orika</span>.B(arg0);</span><br><span class="line">&#125; <span class="keyword">catch</span> (java.lang.Exception e) &#123;</span><br><span class="line">    <span class="keyword">if</span> (e <span class="keyword">instanceof</span> RuntimeException) &#123;</span><br><span class="line">    <span class="keyword">throw</span> (RuntimeException)e;&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">java</span>.lang.RuntimeException(<span class="string">&quot;Error while constructing new B instance&quot;</span>, e);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line">&#125;</span><br><span class="line">  <span class="keyword">return</span> <span class="keyword">new</span> <span class="title class_">orika</span>.B();</span><br><span class="line">&#125;</span><br><span class="line">...</span><br><span class="line">&#125;</span><br><span class="line"></span><br></pre></td></tr></table></figure></li>
+</ol>
+<h2 id="Spring-集成"><a href="#Spring-集成" class="headerlink" title="Spring 集成"></a>Spring 集成</h2><ol>
+<li><p>引入依赖</p>
+ <figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">implementation <span class="string">&#x27;ma.glasnost.orika:orika-core:1.5.4&#x27;</span></span><br></pre></td></tr></table></figure>
+</li>
+<li><p>使用方式</p>
+ <figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Configuration</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">BeanCopyConfig</span> <span class="keyword">extends</span> <span class="title class_">ConfigurableMapper</span> &#123;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="keyword">protected</span> <span class="keyword">void</span> <span class="title function_">configure</span><span class="params">(MapperFactory factory)</span> &#123;</span><br><span class="line">        <span class="built_in">super</span>.configure(factory);</span><br><span class="line">        factory.classMap(A.class, B.class)</span><br><span class="line">                .field(<span class="string">&quot;a&quot;</span>, <span class="string">&quot;b&quot;</span>)</span><br><span class="line">                .byDefault()</span><br><span class="line">                .register();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;  </span><br><span class="line"></span><br><span class="line"><span class="comment">// 使用</span></span><br><span class="line"><span class="meta">@Resource</span></span><br><span class="line"><span class="keyword">private</span> MapperFacade mapperFacade;</span><br><span class="line"></span><br><span class="line"><span class="type">B</span> <span class="variable">b</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">B</span>(<span class="string">&quot;B&quot;</span>);</span><br><span class="line"><span class="type">A</span> <span class="variable">a</span> <span class="operator">=</span> mapperFacade.map(b, A.class);</span><br></pre></td></tr></table></figure></li>
+</ol>
+<h3 id="CompletableFuture"><a href="#CompletableFuture" class="headerlink" title="CompletableFuture"></a>CompletableFuture</h3><p>将一个大任务拆分为多个小任务，并且使各个小任务并行异步执行，是常见的性能优化形式，Java 并发包中的 CompletableFuture 能够帮助程序很方便的实现这一优化</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">List&lt;CompletableFuture&lt;Void&gt;&gt; completableFutures = <span class="keyword">new</span> <span class="title class_">ArrayList</span>&lt;&gt;();</span><br><span class="line"><span class="keyword">for</span> (:) &#123;</span><br><span class="line">    CompletableFuture&lt;Void&gt; completableFuture = CompletableFuture.runAsync(() -&gt; doSomething())</span><br><span class="line">            .exceptionally(ex -&gt; &#123;</span><br><span class="line">                log.error(<span class="string">&quot;something wrong&quot;</span>, ex);</span><br><span class="line">                <span class="keyword">return</span> <span class="literal">null</span>;</span><br><span class="line">            &#125;);</span><br><span class="line">    completableFutures.add(completableFuture);</span><br><span class="line">&#125;</span><br><span class="line">CompletableFuture.allOf(completableFutures.toArray(<span class="keyword">new</span> <span class="title class_">CompletableFuture</span>[<span class="number">0</span>])).join();</span><br></pre></td></tr></table></figure>
+
+<ol>
+<li><p>Orika 在 CompletableFuture 中使用</p>
+ <figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Resource</span></span><br><span class="line"><span class="keyword">private</span> MapperFacade mapperFacade;</span><br><span class="line"></span><br><span class="line">CompletableFuture&lt;Void&gt; completableFuture = CompletableFuture.runAsync(() -&gt; &#123;</span><br><span class="line">    <span class="type">B</span> <span class="variable">b</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">B</span>(<span class="string">&quot;B&quot;</span>);</span><br><span class="line">    <span class="type">A</span> <span class="variable">a</span> <span class="operator">=</span> mapperFacade.map(b, A.class);</span><br><span class="line">&#125;).exceptionally(ex -&gt; &#123;</span><br><span class="line">    log.error(<span class="string">&quot;something wrong&quot;</span>, ex);</span><br><span class="line">    <span class="keyword">return</span> <span class="literal">null</span>;</span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>异常</p>
+ <figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br></pre></td><td class="code"><pre><span class="line">Caused by: ma.glasnost.orika.impl.generator.CompilerStrategy$SourceCodeGenerationException: Error compiling ma.glasnost.    orika.generated.Orika_XXX_YYY_Mapper383167261886761$<span class="number">8</span></span><br><span class="line">        at ma.glasnost.orika.impl.generator.JavassistCompilerStrategy.compileClass(JavassistCompilerStrategy.java:<span class="number">253</span>)</span><br><span class="line">        at ma.glasnost.orika.impl.generator.SourceCodeContext.compileClass(SourceCodeContext.java:<span class="number">228</span>)</span><br><span class="line">        at ma.glasnost.orika.impl.generator.SourceCodeContext.getInstance(SourceCodeContext.java:<span class="number">244</span>)</span><br><span class="line">        at ma.glasnost.orika.impl.generator.MapperGenerator.build(MapperGenerator.java:<span class="number">73</span>)</span><br><span class="line">        ... <span class="number">17</span> common frames omitted</span><br><span class="line">Caused by: javassist.CannotCompileException: by java.lang.reflect.InvocationTargetException</span><br><span class="line">        at javassist.util.proxy.DefineClassHelper$JavaOther.defineClass(DefineClassHelper.java:<span class="number">220</span>)</span><br><span class="line">        at javassist.util.proxy.DefineClassHelper$Java11.defineClass(DefineClassHelper.java:<span class="number">52</span>)</span><br><span class="line">        at javassist.util.proxy.DefineClassHelper.toClass(DefineClassHelper.java:<span class="number">260</span>)</span><br><span class="line">        at javassist.ClassPool.toClass(ClassPool.java:<span class="number">1240</span>)</span><br><span class="line">        at javassist.CtClass.toClass(CtClass.java:<span class="number">1392</span>)</span><br><span class="line">        at ma.glasnost.orika.impl.generator.JavassistCompilerStrategy.compileClass(JavassistCompilerStrategy.java:<span class="number">246</span>)</span><br><span class="line">        ... <span class="number">20</span> common frames omitted</span><br><span class="line">Caused by: java.lang.reflect.InvocationTargetException: <span class="literal">null</span></span><br><span class="line">        at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)</span><br><span class="line">        at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:<span class="number">77</span>)</span><br><span class="line">        at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:<span class="number">43</span>)</span><br><span class="line">        at java.base/java.lang.reflect.Method.invoke(Method.java:<span class="number">568</span>)</span><br><span class="line">        at javassist.util.proxy.DefineClassHelper$JavaOther.defineClass(DefineClassHelper.java:<span class="number">214</span>)</span><br><span class="line">        ... <span class="number">25</span> common frames omitted</span><br><span class="line">Caused by: java.lang.NoClassDefFoundError: ma/glasnost/orika/impl/GeneratedMapperBase</span><br><span class="line">        at java.base/java.lang.ClassLoader.defineClass1(Native Method)</span><br><span class="line">        at java.base/java.lang.ClassLoader.defineClass(ClassLoader.java:<span class="number">1012</span>)</span><br><span class="line">        ... <span class="number">30</span> common frames omitted</span><br><span class="line">Caused by: java.lang.ClassNotFoundException: ma.glasnost.orika.impl.GeneratedMapperBase</span><br><span class="line">        at java.base/jdk.internal.loader.BuiltinClassLoader.loadClass(BuiltinClassLoader.java:<span class="number">641</span>)</span><br><span class="line">        at java.base/jdk.internal.loader.ClassLoaders$AppClassLoader.loadClass(ClassLoaders.java:<span class="number">188</span>)</span><br><span class="line">        at java.base/java.lang.ClassLoader.loadClass(ClassLoader.java:<span class="number">520</span>)</span><br><span class="line">        ... <span class="number">32</span> common frames omitted</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>JarLauncher</p>
+<p> Spring 应用被打包为 FatJar 的形式，并通过 JarLauncher 来启动 FatJar 应用，JarLauncher 自定义了类加载器 org.springframework.boot.    loader.LaunchedURLClassLoader@25f38edc，其 Parent ClassLoader 被设置为 SystemClassLoader</p>
+ <figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">JarLauncher#launch(..)</span><br><span class="line"></span><br><span class="line"><span class="keyword">protected</span> <span class="keyword">void</span> <span class="title function_">launch</span><span class="params">(String[] args)</span> <span class="keyword">throws</span> Exception &#123;</span><br><span class="line">        <span class="keyword">if</span> (!isExploded()) &#123;</span><br><span class="line">                JarFile.registerUrlProtocolHandler();</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="type">ClassLoader</span> <span class="variable">classLoader</span> <span class="operator">=</span> createClassLoader(getClassPathArchivesIterator());</span><br><span class="line">        <span class="type">String</span> <span class="variable">jarMode</span> <span class="operator">=</span> System.getProperty(<span class="string">&quot;jarmode&quot;</span>);</span><br><span class="line">        <span class="type">String</span> <span class="variable">launchClass</span> <span class="operator">=</span> (jarMode != <span class="literal">null</span> &amp;&amp; !jarMode.isEmpty()) ? JAR_MODE_LAUNCHER : getMainClass();</span><br><span class="line">        launch(args, launchClass, classLoader);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">protected</span> ClassLoader <span class="title function_">createClassLoader</span><span class="params">(URL[] urls)</span> <span class="keyword">throws</span> Exception &#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">new</span> <span class="title class_">LaunchedURLClassLoader</span>(isExploded(), getArchive(), urls, getClass().getClassLoader());</span><br><span class="line">        <span class="comment">// Parent ClassLoader 是 getClass().getClassLoader()，即 SystemClassLoader</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>ForkJoinPool</p>
+<p> CompletableFuture 默认使用的是 ForkJoinPool 线程池，线程上下文加载器为 SystemClassLoader</p>
+ <figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">ForkJoinWorkerThread(ThreadGroup group, ForkJoinPool pool,</span><br><span class="line">                        <span class="type">boolean</span> useSystemClassLoader, <span class="type">boolean</span> isInnocuous) &#123;</span><br><span class="line">    <span class="built_in">super</span>(group, <span class="literal">null</span>, pool.nextWorkerThreadName(), <span class="number">0L</span>);</span><br><span class="line">    <span class="type">UncaughtExceptionHandler</span> <span class="variable">handler</span> <span class="operator">=</span> (<span class="built_in">this</span>.pool = pool).ueh;</span><br><span class="line">    <span class="built_in">this</span>.workQueue = <span class="keyword">new</span> <span class="title class_">ForkJoinPool</span>.WorkQueue(<span class="built_in">this</span>, isInnocuous);</span><br><span class="line">    <span class="built_in">super</span>.setDaemon(<span class="literal">true</span>);</span><br><span class="line">    <span class="keyword">if</span> (handler != <span class="literal">null</span>)</span><br><span class="line">        <span class="built_in">super</span>.setUncaughtExceptionHandler(handler);</span><br><span class="line">    <span class="keyword">if</span> (useSystemClassLoader)</span><br><span class="line">        <span class="built_in">super</span>.setContextClassLoader(ClassLoader.getSystemClassLoader()); <span class="comment">// 线程上下文加载器被设置为 SystemClassLoader</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+</li>
+<li><p><strong>原因</strong></p>
+<p> Orika 中的 Javassist 使用 ForkJoinPool 线程上下文加载器 SystemClassLoader 加载 Java Bean，而 Java Bean 是由 Spring 自定义的 LaunchedURLClassLoader 加载，类加载路线：SystemClassLoader -&gt; LaunchedURLClassLoader，违反了加载器类的可见性</p>
+</li>
+<li><p>解决</p>
+<p> 使用 ThreadPoolTaskExecutor 线程池运行 CompletableFuture</p>
+ <figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Bean(name = &quot;asyncServiceExecutor&quot;)</span></span><br><span class="line"><span class="keyword">public</span> Executor <span class="title function_">asyncServiceExecutor</span><span class="params">()</span> &#123;</span><br><span class="line">        <span class="type">ThreadPoolTaskExecutor</span> <span class="variable">executor</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">ThreadPoolTaskExecutor</span>();</span><br><span class="line">        executor.setCorePoolSize(<span class="number">10</span>);</span><br><span class="line">        executor.setMaxPoolSize(<span class="number">10</span>);</span><br><span class="line">        executor.setThreadNamePrefix(<span class="string">&quot;-async-&quot;</span>);</span><br><span class="line">        executor.setRejectedExecutionHandler(<span class="keyword">new</span> <span class="title class_">ThreadPoolExecutor</span>.CallerRunsPolicy());</span><br><span class="line">        executor.initialize();</span><br><span class="line">        <span class="keyword">return</span> executor;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">....</span><br><span class="line"></span><br><span class="line"><span class="meta">@Resource</span></span><br><span class="line"><span class="keyword">private</span> Executor asyncServiceExecutor;</span><br><span class="line"></span><br><span class="line">CompletableFuture&lt;Void&gt; completableFuture = CompletableFuture.runAsync(() -&gt; &#123;</span><br><span class="line">    <span class="type">B</span> <span class="variable">b</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">B</span>(<span class="string">&quot;B&quot;</span>);</span><br><span class="line">    <span class="type">A</span> <span class="variable">a</span> <span class="operator">=</span> mapperFacade.map(b, A.class);</span><br><span class="line">&#125;,asyncServiceExecutor).exceptionally(ex -&gt; &#123;</span><br><span class="line">    log.error(<span class="string">&quot;something wrong&quot;</span>, ex);</span><br><span class="line">    <span class="keyword">return</span> <span class="literal">null</span>;</span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure></li>
+</ol>
+<!--stackedit_data:
+eyJoaXN0b3J5IjpbNTQ5MTYwNTI1XX0=
+-->
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/Java/" rel="tag"># Java</a>
+              <a href="/tags/Spring/" rel="tag"># Spring</a>
+              <a href="/tags/%E5%A4%9A%E7%BA%BF%E7%A8%8B/" rel="tag"># 多线程</a>
+              <a href="/tags/JVM/" rel="tag"># JVM</a>
+              <a href="/tags/%E5%BC%82%E6%AD%A5/" rel="tag"># 异步</a>
+              <a href="/tags/Orika/" rel="tag"># Orika</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2023/11/21/HowManyJsInJava/" rel="prev" title="How Many J In Java">
+      <i class="fa fa-chevron-left"></i> How Many J In Java
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2024/07/11/software-lifecycle/" rel="next" title="A/B testing, Canary release, Blue–green deployment, Gray-box testing">
+      A/B testing, Canary release, Blue–green deployment, Gray-box testing <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="gitalk-container"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#ClassLoader"><span class="nav-number">1.</span> <span class="nav-text">ClassLoader</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#ClassLoader-%E5%87%86%E5%88%99"><span class="nav-number">1.1.</span> <span class="nav-text">ClassLoader 准则</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#SPI"><span class="nav-number">1.2.</span> <span class="nav-text">SPI</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%BA%BF%E7%A8%8B%E4%B8%8A%E4%B8%8B%E6%96%87%E7%B1%BB%E5%8A%A0%E8%BD%BD%E5%99%A8"><span class="nav-number">1.3.</span> <span class="nav-text">线程上下文类加载器</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Orika"><span class="nav-number">2.</span> <span class="nav-text">Orika</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#Spring-%E9%9B%86%E6%88%90"><span class="nav-number">2.1.</span> <span class="nav-text">Spring 集成</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#CompletableFuture"><span class="nav-number">2.1.1.</span> <span class="nav-text">CompletableFuture</span></a></li></ol></li></ol></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="Mark"
+      src="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/avatar_what.png">
+  <p class="site-author-name" itemprop="name">Mark</p>
+  <div class="site-description" itemprop="description">Stay Hungry, Stay Foolish.</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">64</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">18</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">28</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://space.bilibili.com/1268283" title="Bilibili → https:&#x2F;&#x2F;space.bilibili.com&#x2F;1268283" rel="noopener" target="_blank"><i class="fas fa-video fa-fw"></i>Bilibili</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://www.youtube.com/channel/UCgo_k4UEkGUNrG-resCDVKw" title="YouTube → https:&#x2F;&#x2F;www.youtube.com&#x2F;channel&#x2F;UCgo_k4UEkGUNrG-resCDVKw" rel="noopener" target="_blank"><i class="fab fa-youtube fa-fw"></i>YouTube</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 2015 – 
+  <span itemprop="copyrightYear">2024</span>
+  <span class="with-love">
+    <i class="fas fa-gamepad"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Mark</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-chart-area"></i>
+    </span>
+    <span title="站点总字数">67k</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+    <span title="站点阅读时长">4:02</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://mist.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a> 强力驱动
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.css">
+
+<script>
+NexT.utils.loadComments(document.querySelector('#gitalk-container'), () => {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.js', () => {
+    var gitalk = new Gitalk({
+      clientID    : '1d971a932df33dd64e19',
+      clientSecret: 'a51b84396586902b536b1b26a917003af50ea152',
+      repo        : 'hexo-comments',
+      owner       : 'dreamming',
+      admin       : ['dreamming'],
+      id          : 'cedbf8709367653c50a15b1f09520c5d',
+        language: 'zh-CN',
+      distractionFreeMode: false
+    });
+    gitalk.render('gitalk-container');
+  }, window.Gitalk);
+});
+</script>
+
+</body>
+</html>

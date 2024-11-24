@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.4.2">
+
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-N9NJ5HB');</script>
+<!-- End Google Tag Manager -->
+
+<!-- Google Tag Manager (noscript) -->
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-N9NJ5HB"
+height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+<!-- End Google Tag Manager (noscript) -->
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"whathowhy.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"hide","padding":18,"offset":12,"onmobile":true},"copycode":{"enable":true,"show_result":true,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="基于Docker的代码质量持续约束流程搭建为了提高团队整体的代码质量，有必要搭建一套持续的代码约束流程。本文记录基于Docker如何搭建自动化代码检测流程">
+<meta property="og:type" content="article">
+<meta property="og:title" content="代码质量持续约束">
+<meta property="og:url" content="https://whathowhy.com/2019/01/17/CodeQualityCICD/index.html">
+<meta property="og:site_name" content="8lovelife&#39;s life">
+<meta property="og:description" content="基于Docker的代码质量持续约束流程搭建为了提高团队整体的代码质量，有必要搭建一套持续的代码约束流程。本文记录基于Docker如何搭建自动化代码检测流程">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/photos/18.png">
+<meta property="og:image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/CICD/Code%20C%20C.png">
+<meta property="og:image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/CICD/GitLab%20SpringTemplate.png">
+<meta property="og:image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/CICD/GitLab%20Config.png">
+<meta property="og:image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/CICD/GitLab%20Token.png">
+<meta property="og:image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/CICD/GItLab%20G%20Token.png">
+<meta property="og:image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/CICD/GitLab%20Runner%20Register.png">
+<meta property="og:image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/CICD/GitLab%20Runner%20Config.png">
+<meta property="og:image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/CICD/SonarQube%20Token.png">
+<meta property="og:image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/CICD/SonarQube%20Lanage.png">
+<meta property="og:image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/CICD/Java%20Plugin%20Install.png">
+<meta property="og:image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/CICD/Restart%20SonarQube.png">
+<meta property="article:published_time" content="2019-01-17T03:57:10.000Z">
+<meta property="article:modified_time" content="2024-11-24T15:09:32.162Z">
+<meta property="article:author" content="Mark">
+<meta property="article:tag" content="Docker">
+<meta property="article:tag" content="运维">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/photos/18.png">
+
+<link rel="canonical" href="https://whathowhy.com/2019/01/17/CodeQualityCICD/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>代码质量持续约束 | 8lovelife's life</title>
+  
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-MSKY7FDVPG"></script>
+    <script>
+      if (CONFIG.hostname === location.hostname) {
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-MSKY7FDVPG');
+      }
+    </script>
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">8lovelife's life</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">M&M</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://whathowhy.com/2019/01/17/CodeQualityCICD/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/avatar_what.png">
+      <meta itemprop="name" content="Mark">
+      <meta itemprop="description" content="Stay Hungry, Stay Foolish.">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="8lovelife's life">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          代码质量持续约束
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2019-01-17 11:57:10" itemprop="dateCreated datePublished" datetime="2019-01-17T11:57:10+08:00">2019-01-17</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2024-11-24 23:09:32" itemprop="dateModified" datetime="2024-11-24T23:09:32+08:00">2024-11-24</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Docker/" itemprop="url" rel="index"><span itemprop="name">Docker</span></a>
+                </span>
+            </span>
+
+          <br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="far fa-file-word"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>669</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="far fa-clock"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              <span>2 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <img src="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/photos/18.png" class="full-image" />
+
+<h1 id="基于Docker的代码质量持续约束流程搭建"><a href="#基于Docker的代码质量持续约束流程搭建" class="headerlink" title="基于Docker的代码质量持续约束流程搭建"></a>基于Docker的代码质量持续约束流程搭建</h1><p>为了提高团队整体的代码质量，有必要搭建一套持续的代码约束流程。本文记录基于Docker如何搭建自动化代码检测流程</p>
+<p><img src="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/CICD/Code%20C%20C.png"></p>
+<span id="more"></span>
+
+<h1 id="创建网络"><a href="#创建网络" class="headerlink" title="创建网络"></a>创建网络</h1><p>方便组件间通过容器名通信</p>
+<p><code>docker network create -d bridge --subnet=10.0.0.0/24 cicd_bridge</code></p>
+<h1 id="GitLab"><a href="#GitLab" class="headerlink" title="GitLab"></a>GitLab</h1><p>开源的代码托管平台，集成了CI&#x2F;CD</p>
+<h2 id="启动"><a href="#启动" class="headerlink" title="启动"></a>启动</h2><p><code>docker run -it --network=cicd_bridge -p 443:443 -p 80:80 -p 22:22 --name gitlab_cicd --restart always -v ~/DockerVolumeCicd/gitlab/config:/etc/gitlab -v ~/DockerVolumeCicd/gitlab/logs:/var/log/gitlab -v ~/DockerVolumeCicd/gitlab/data:/var/opt/gitlab -d gitlab/gitlab-ce:latest</code></p>
+<h2 id="访问-http-127-0-0-1"><a href="#访问-http-127-0-0-1" class="headerlink" title="访问 http://127.0.0.1"></a>访问 <a target="_blank" rel="noopener" href="http://127.0.0.1/">http://127.0.0.1</a></h2><blockquote>
+<p>首次登陆设置密码为：adminadmin ,使用 root用户名登陆</p>
+</blockquote>
+<h2 id="创建一个spring-测试项目"><a href="#创建一个spring-测试项目" class="headerlink" title="创建一个spring 测试项目"></a>创建一个spring 测试项目</h2><p><img src="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/CICD/GitLab%20SpringTemplate.png"></p>
+<h2 id="设置-GitLab-扩展url-并-重启"><a href="#设置-GitLab-扩展url-并-重启" class="headerlink" title="设置 GitLab 扩展url 并 重启"></a>设置 GitLab 扩展url 并 重启</h2><p><code>vi ~DockerVolumeCicd/gitlab/config/gitlab.rb</code> </p>
+<p><img src="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/CICD/GitLab%20Config.png"></p>
+<p><code>docker restart gitlab_cicd </code>  </p>
+<h1 id="GitLab-Runner"><a href="#GitLab-Runner" class="headerlink" title="GitLab Runner"></a>GitLab Runner</h1><p>GitLab Runner用于运行.gitlab-ci.yml中定义的Jobs，Jobs的执行结果会被发送到GitLab，GitLab Runner与GitLab CI（持续集成服务） 集成使用。GitLab Runner由Go语言实现</p>
+<h2 id="启动-1"><a href="#启动-1" class="headerlink" title="启动"></a>启动</h2><p><code>docker run -it --network=cicd_bridge --name gitlab-runner_cicd --restart always -v /var/run/docker.sock:/var/run/docker.sock -v ~/DockerVolumeCicd/gitlab-runner/conf:/etc/gitlab-runner/ -d gitlab/gitlab-runner:latest</code></p>
+<h2 id="获取-Runner-Token"><a href="#获取-Runner-Token" class="headerlink" title="获取 Runner Token"></a>获取 Runner Token</h2><p><img src="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/CICD/GitLab%20Token.png"><br><img src="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/CICD/GItLab%20G%20Token.png"></p>
+<h2 id="注册-Runner"><a href="#注册-Runner" class="headerlink" title="注册 Runner"></a>注册 Runner</h2><p><code>docker exec -it gitlab-runner_cicd gitlab-ci-multi-runner register</code></p>
+<p><img src="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/CICD/GitLab%20Runner%20Register.png"></p>
+<p><code>或者命令指定注册： docker exec -it  gitlab-runner_cicd gitlab-ci-multi-runner register   --non-interactive   --executor &quot;docker&quot;   --docker-image maven:3.5-jdk-8   --url &quot;http://gitlab_cicd&quot;   --registration-token &quot;NDcNdmx5jaQxka8Ua3sn&quot;   --description &quot;docker-runner&quot;   --tag-list &quot;whw&quot;   --run-untagged   --locked=&quot;false&quot; --docker-network-mode =cicd_bridge</code></p>
+<h2 id="配置注册信息"><a href="#配置注册信息" class="headerlink" title="配置注册信息"></a>配置注册信息</h2><p><code>  vi ~/DockerVolumeCicd/gitlab-runner/conf/config.toml</code></p>
+<p><img src="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/CICD/GitLab%20Runner%20Config.png"></p>
+<h1 id="SonarQube"><a href="#SonarQube" class="headerlink" title="SonarQube"></a>SonarQube</h1><p>SonarQube是一个代码质量管理系统，支持多种语言分析，提供重复代码、编码标准、单元测试、代码覆盖率、代码复杂度、潜在Bug的报告分析</p>
+<h2 id="启动-2"><a href="#启动-2" class="headerlink" title="启动"></a>启动</h2><p><code>docker run -it --network=cicd_bridge  -p 9000:9000 --name sonarqube_cicd --restart always -v ~/DockerVolumeCicd/sonar/conf:/opt/sonarqube/conf -v ~/DockerVolumeCicd/sonar/data:/opt/sonarqube/data -v ~/DockerVolumeCicd/sonar/logs:/opt/sonarqube/logs -v ~/DockerVolumeCicd/sonar/extensions:/opt/sonarqube/extensions -d sonarqube</code></p>
+<h2 id="访问-http-127-0-0-1-9000"><a href="#访问-http-127-0-0-1-9000" class="headerlink" title="访问 http://127.0.0.1:9000"></a>访问 <a target="_blank" rel="noopener" href="http://127.0.0.1:9000/">http://127.0.0.1:9000</a></h2><blockquote>
+<p>   user&#x2F;pwd 默认为 admin&#x2F;admin</p>
+</blockquote>
+<h2 id="首次登陆配置"><a href="#首次登陆配置" class="headerlink" title="首次登陆配置"></a>首次登陆配置</h2><p><img src="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/CICD/SonarQube%20Token.png"><br><img src="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/CICD/SonarQube%20Lanage.png"></p>
+<h2 id="安装Java语言插件-AND-刷新页面Restart-SonarQube"><a href="#安装Java语言插件-AND-刷新页面Restart-SonarQube" class="headerlink" title="安装Java语言插件 AND 刷新页面Restart SonarQube"></a>安装Java语言插件 AND 刷新页面Restart SonarQube</h2><p><img src="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/CICD/Java%20Plugin%20Install.png"><br><img src="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/CICD/Restart%20SonarQube.png"></p>
+<h1 id="gitlab-ci-yml"><a href="#gitlab-ci-yml" class="headerlink" title=".gitlab-ci.yml"></a>.gitlab-ci.yml</h1><p>在项目的根目录添加.gitlab-ci.yml文件，用于定义Jobs</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br></pre></td><td class="code"><pre><span class="line">image: maven:3.5-jdk-8</span><br><span class="line">stages:</span><br><span class="line">  - build</span><br><span class="line">  - test</span><br><span class="line">  - sonarqube</span><br><span class="line"></span><br><span class="line">variables:</span><br><span class="line">  MAVEN_OPTS: &quot;-Dmaven.repo.local=.m2/repository&quot;</span><br><span class="line"></span><br><span class="line">cache:</span><br><span class="line">  paths:</span><br><span class="line">    - .m2/repository</span><br><span class="line">    - target/</span><br><span class="line"></span><br><span class="line">build:</span><br><span class="line">  stage: build</span><br><span class="line">  only:</span><br><span class="line">    - release-test</span><br><span class="line">    - develop</span><br><span class="line">  script:</span><br><span class="line">    - mvn clean install -Dmaven.test.skip</span><br><span class="line">  tags:</span><br><span class="line">    - whw</span><br><span class="line"></span><br><span class="line">test:</span><br><span class="line">  stage: test</span><br><span class="line">  only:</span><br><span class="line">    - release-test</span><br><span class="line">    - develop</span><br><span class="line">  script:</span><br><span class="line">    - mvn test</span><br><span class="line">  tags:</span><br><span class="line">    - whw</span><br><span class="line">  allow_failure: true</span><br><span class="line"></span><br><span class="line">sonarqube:</span><br><span class="line">  stage: sonarqube</span><br><span class="line">  only:</span><br><span class="line">    - release-test</span><br><span class="line">    - develop</span><br><span class="line">  script:</span><br><span class="line">    - mvn sonar:sonar -Dsonar.host.url=http://sonarqube_cicd:9000 -Dsonar.language=java</span><br><span class="line">  tags:</span><br><span class="line">    - whw</span><br></pre></td></tr></table></figure>
+
+<h1 id="GitLab-GitLab-Runner-GitLab-CI"><a href="#GitLab-GitLab-Runner-GitLab-CI" class="headerlink" title="GitLab &amp; GitLab Runner &amp; GitLab CI"></a>GitLab &amp; GitLab Runner &amp; GitLab CI</h1><p>当有项目代码提交到GitLab的时候，GitLab会通知到GitLab CI，GitLab CI根据配置的Jobs将任务分发给指定的GitLab Runner，GitLab Runner 执行配置好的的Piplelines</p>
+<blockquote class="blockquote-center">
+            <i class="fa fa-quote-left"></i>
+            <p> Boys, you must strive to find your own voice. Because the longer you wait to begin, the less likely you are to find it at all. - John</p>
+<p><a target="_blank" rel="noopener" href="https://movie.douban.com/subject/1291548/">Dead Poets Society</a></p>
+
+            <i class="fa fa-quote-right"></i>
+          </blockquote>
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/Docker/" rel="tag"># Docker</a>
+              <a href="/tags/%E8%BF%90%E7%BB%B4/" rel="tag"># 运维</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2018/10/13/KafkaOnDocker/" rel="prev" title="Kafka On Docker">
+      <i class="fa fa-chevron-left"></i> Kafka On Docker
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2019/01/30/MonitorBaseOnDocker/" rel="next" title="基于Docker搭建监控系统">
+      基于Docker搭建监控系统 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="gitalk-container"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%9F%BA%E4%BA%8EDocker%E7%9A%84%E4%BB%A3%E7%A0%81%E8%B4%A8%E9%87%8F%E6%8C%81%E7%BB%AD%E7%BA%A6%E6%9D%9F%E6%B5%81%E7%A8%8B%E6%90%AD%E5%BB%BA"><span class="nav-number">1.</span> <span class="nav-text">基于Docker的代码质量持续约束流程搭建</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%88%9B%E5%BB%BA%E7%BD%91%E7%BB%9C"><span class="nav-number">2.</span> <span class="nav-text">创建网络</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#GitLab"><span class="nav-number">3.</span> <span class="nav-text">GitLab</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%90%AF%E5%8A%A8"><span class="nav-number">3.1.</span> <span class="nav-text">启动</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%AE%BF%E9%97%AE-http-127-0-0-1"><span class="nav-number">3.2.</span> <span class="nav-text">访问 http:&#x2F;&#x2F;127.0.0.1</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%88%9B%E5%BB%BA%E4%B8%80%E4%B8%AAspring-%E6%B5%8B%E8%AF%95%E9%A1%B9%E7%9B%AE"><span class="nav-number">3.3.</span> <span class="nav-text">创建一个spring 测试项目</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%AE%BE%E7%BD%AE-GitLab-%E6%89%A9%E5%B1%95url-%E5%B9%B6-%E9%87%8D%E5%90%AF"><span class="nav-number">3.4.</span> <span class="nav-text">设置 GitLab 扩展url 并 重启</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#GitLab-Runner"><span class="nav-number">4.</span> <span class="nav-text">GitLab Runner</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%90%AF%E5%8A%A8-1"><span class="nav-number">4.1.</span> <span class="nav-text">启动</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%8E%B7%E5%8F%96-Runner-Token"><span class="nav-number">4.2.</span> <span class="nav-text">获取 Runner Token</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%B3%A8%E5%86%8C-Runner"><span class="nav-number">4.3.</span> <span class="nav-text">注册 Runner</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E9%85%8D%E7%BD%AE%E6%B3%A8%E5%86%8C%E4%BF%A1%E6%81%AF"><span class="nav-number">4.4.</span> <span class="nav-text">配置注册信息</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#SonarQube"><span class="nav-number">5.</span> <span class="nav-text">SonarQube</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%90%AF%E5%8A%A8-2"><span class="nav-number">5.1.</span> <span class="nav-text">启动</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%AE%BF%E9%97%AE-http-127-0-0-1-9000"><span class="nav-number">5.2.</span> <span class="nav-text">访问 http:&#x2F;&#x2F;127.0.0.1:9000</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E9%A6%96%E6%AC%A1%E7%99%BB%E9%99%86%E9%85%8D%E7%BD%AE"><span class="nav-number">5.3.</span> <span class="nav-text">首次登陆配置</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%AE%89%E8%A3%85Java%E8%AF%AD%E8%A8%80%E6%8F%92%E4%BB%B6-AND-%E5%88%B7%E6%96%B0%E9%A1%B5%E9%9D%A2Restart-SonarQube"><span class="nav-number">5.4.</span> <span class="nav-text">安装Java语言插件 AND 刷新页面Restart SonarQube</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#gitlab-ci-yml"><span class="nav-number">6.</span> <span class="nav-text">.gitlab-ci.yml</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#GitLab-GitLab-Runner-GitLab-CI"><span class="nav-number">7.</span> <span class="nav-text">GitLab &amp; GitLab Runner &amp; GitLab CI</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="Mark"
+      src="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/avatar_what.png">
+  <p class="site-author-name" itemprop="name">Mark</p>
+  <div class="site-description" itemprop="description">Stay Hungry, Stay Foolish.</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">64</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">18</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">28</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://space.bilibili.com/1268283" title="Bilibili → https:&#x2F;&#x2F;space.bilibili.com&#x2F;1268283" rel="noopener" target="_blank"><i class="fas fa-video fa-fw"></i>Bilibili</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://www.youtube.com/channel/UCgo_k4UEkGUNrG-resCDVKw" title="YouTube → https:&#x2F;&#x2F;www.youtube.com&#x2F;channel&#x2F;UCgo_k4UEkGUNrG-resCDVKw" rel="noopener" target="_blank"><i class="fab fa-youtube fa-fw"></i>YouTube</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 2015 – 
+  <span itemprop="copyrightYear">2024</span>
+  <span class="with-love">
+    <i class="fas fa-gamepad"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Mark</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-chart-area"></i>
+    </span>
+    <span title="站点总字数">67k</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+    <span title="站点阅读时长">4:02</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://mist.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a> 强力驱动
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.css">
+
+<script>
+NexT.utils.loadComments(document.querySelector('#gitalk-container'), () => {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.js', () => {
+    var gitalk = new Gitalk({
+      clientID    : '1d971a932df33dd64e19',
+      clientSecret: 'a51b84396586902b536b1b26a917003af50ea152',
+      repo        : 'hexo-comments',
+      owner       : 'dreamming',
+      admin       : ['dreamming'],
+      id          : '3cb858867ad9967928aa008101ff045c',
+        language: 'zh-CN',
+      distractionFreeMode: false
+    });
+    gitalk.render('gitalk-container');
+  }, window.Gitalk);
+});
+</script>
+
+</body>
+</html>

@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.4.2">
+
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-N9NJ5HB');</script>
+<!-- End Google Tag Manager -->
+
+<!-- Google Tag Manager (noscript) -->
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-N9NJ5HB"
+height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+<!-- End Google Tag Manager (noscript) -->
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"whathowhy.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"hide","padding":18,"offset":12,"onmobile":true},"copycode":{"enable":true,"show_result":true,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="记录下如何监控JVM，包括JVM的线程、堆内存、CPU使用情况等 GC LOGGC日志能够反应JVM内存的动态分配回收状况、应用停顿的时间，是GC调优的依据 JVM配置查询 jmap -heap [pid]  123456789101112131415161718192021222324252627282930313233343536373839404142434445464748Mac:dm">
+<meta property="og:type" content="article">
+<meta property="og:title" content="JVM监控">
+<meta property="og:url" content="https://whathowhy.com/2018/04/16/JVMMonitor/index.html">
+<meta property="og:site_name" content="8lovelife&#39;s life">
+<meta property="og:description" content="记录下如何监控JVM，包括JVM的线程、堆内存、CPU使用情况等 GC LOGGC日志能够反应JVM内存的动态分配回收状况、应用停顿的时间，是GC调优的依据 JVM配置查询 jmap -heap [pid]  123456789101112131415161718192021222324252627282930313233343536373839404142434445464748Mac:dm">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/photos/28.png">
+<meta property="og:image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/JVM/Java_VisualVM.png">
+<meta property="og:image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/JVM/VisualGC.png">
+<meta property="og:image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/JVM/VisualGC_D.png">
+<meta property="og:image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/JVM/topc.png">
+<meta property="og:image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/JVM/toph.png">
+<meta property="og:image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/JVM/jstackinfo.png">
+<meta property="article:published_time" content="2018-04-16T08:18:55.000Z">
+<meta property="article:modified_time" content="2024-11-24T15:09:32.162Z">
+<meta property="article:author" content="Mark">
+<meta property="article:tag" content="Java">
+<meta property="article:tag" content="JVM">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/photos/28.png">
+
+<link rel="canonical" href="https://whathowhy.com/2018/04/16/JVMMonitor/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>JVM监控 | 8lovelife's life</title>
+  
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-MSKY7FDVPG"></script>
+    <script>
+      if (CONFIG.hostname === location.hostname) {
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-MSKY7FDVPG');
+      }
+    </script>
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">8lovelife's life</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">M&M</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://whathowhy.com/2018/04/16/JVMMonitor/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/avatar_what.png">
+      <meta itemprop="name" content="Mark">
+      <meta itemprop="description" content="Stay Hungry, Stay Foolish.">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="8lovelife's life">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          JVM监控
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2018-04-16 16:18:55" itemprop="dateCreated datePublished" datetime="2018-04-16T16:18:55+08:00">2018-04-16</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2024-11-24 23:09:32" itemprop="dateModified" datetime="2024-11-24T23:09:32+08:00">2024-11-24</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/JVM/" itemprop="url" rel="index"><span itemprop="name">JVM</span></a>
+                </span>
+            </span>
+
+          <br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="far fa-file-word"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>1k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="far fa-clock"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              <span>4 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <img src="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/photos/28.png" class="full-image" />
+
+<p>记录下如何监控JVM，包括JVM的线程、堆内存、CPU使用情况等</p>
+<h1 id="GC-LOG"><a href="#GC-LOG" class="headerlink" title="GC LOG"></a>GC LOG</h1><p>GC日志能够反应JVM内存的动态分配回收状况、应用停顿的时间，是GC调优的依据</p>
+<h2 id="JVM配置查询"><a href="#JVM配置查询" class="headerlink" title="JVM配置查询"></a>JVM配置查询</h2><blockquote>
+<p>jmap -heap [pid]</p>
+</blockquote>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br></pre></td><td class="code"><pre><span class="line">Mac:dmz-inward- mac$ jmap -heap 1016 （JDK1.8）</span><br><span class="line">Attaching to process ID 1016, please wait...</span><br><span class="line">Debugger attached successfully.</span><br><span class="line">Server compiler detected.</span><br><span class="line">JVM version is 25.40-b25</span><br><span class="line"></span><br><span class="line">using thread-local object allocation.</span><br><span class="line">Parallel GC with 4 thread(s)</span><br><span class="line"></span><br><span class="line">Heap Configuration:</span><br><span class="line">   MinHeapFreeRatio         = 0</span><br><span class="line">   MaxHeapFreeRatio         = 100</span><br><span class="line">   MaxHeapSize              = 1073741824 (1024.0MB)</span><br><span class="line">   NewSize                  = 22020096 (21.0MB)</span><br><span class="line">   MaxNewSize               = 357564416 (341.0MB)</span><br><span class="line">   OldSize                  = 45088768 (43.0MB)</span><br><span class="line">   NewRatio                 = 2</span><br><span class="line">   SurvivorRatio            = 8</span><br><span class="line">   MetaspaceSize            = 21807104 (20.796875MB)</span><br><span class="line">   CompressedClassSpaceSize = 1073741824 (1024.0MB)</span><br><span class="line">   MaxMetaspaceSize         = 17592186044415 MB</span><br><span class="line">   G1HeapRegionSize         = 0 (0.0MB)</span><br><span class="line"></span><br><span class="line">Heap Usage:</span><br><span class="line">PS Young Generation</span><br><span class="line">Eden Space:</span><br><span class="line">   capacity = 16777216 (16.0MB)</span><br><span class="line">   used     = 11951560 (11.397895812988281MB)</span><br><span class="line">   free     = 4825656 (4.602104187011719MB)</span><br><span class="line">   71.23684883117676% used</span><br><span class="line">From Space:</span><br><span class="line">   capacity = 3145728 (3.0MB)</span><br><span class="line">   used     = 2879968 (2.746551513671875MB)</span><br><span class="line">   free     = 265760 (0.253448486328125MB)</span><br><span class="line">   91.55171712239583% used</span><br><span class="line">To Space:</span><br><span class="line">   capacity = 3145728 (3.0MB)</span><br><span class="line">   used     = 0 (0.0MB)</span><br><span class="line">   free     = 3145728 (3.0MB)</span><br><span class="line">   0.0% used</span><br><span class="line">PS Old Generation</span><br><span class="line">   capacity = 45088768 (43.0MB)</span><br><span class="line">   used     = 857520 (0.8177947998046875MB)</span><br><span class="line">   free     = 44231248 (42.18220520019531MB)</span><br><span class="line">   1.9018483716388082% used</span><br><span class="line"></span><br><span class="line">4674 interned Strings occupying 366808 bytes.</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+<span id="more"></span>
+
+<h2 id="GC日志文件"><a href="#GC日志文件" class="headerlink" title="GC日志文件"></a>GC日志文件</h2><ul>
+<li>-verbose:gc</li>
+<li>-XX:+PrintGCDetails</li>
+<li>-XX:+PrintGCApplicationStoppedTime</li>
+<li>-XX:+PrintGCDateStamps</li>
+<li>-XX:+PrintHeapAtGC , GC前后输出堆内存大小</li>
+<li>-Xloggc:[file] , GC信息输出到独立文件中</li>
+<li>-XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath&#x3D;[file] ,记录 堆内存耗尽时的堆快照</li>
+<li>-XX:ErrorFile&#x3D;[file] ,记录JVM虚拟机本身的异常信息</li>
+</ul>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">-XX:+PrintGCDetails -XX:+PrintGCApplicationStoppedTime -XX:+PrintHeapAtGC -Xloggc:/tmp/gc.log  -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp/ -XX:ErrorFile=/tmp/JVM_Error.log</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li><a target="_blank" rel="noopener" href="http://gceasy.io/index.jsp">分析GC Log</a></li>
+</ul>
+<h2 id="jstat"><a href="#jstat" class="headerlink" title="jstat"></a>jstat</h2><ol>
+<li>GC、堆内存信息总情况</li>
+</ol>
+<blockquote>
+<p>jstat -gcutil [pid] [intervel] [count]</p>
+</blockquote>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">Mac:JDK mac$ jstat -gcutil 3157 500 2</span><br><span class="line">  S0     S1     E      O      M     CCS    YGC     YGCT    FGC    FGCT     GCT   </span><br><span class="line">  0.00   0.00  52.00  97.79  66.51  69.76      3    0.022     2    0.067    0.089</span><br><span class="line">  0.00   0.00  52.00  95.80  66.51  69.76      3    0.022     2    0.067    0.089</span><br><span class="line">  </span><br><span class="line">  S0 S1 E O M : 表示堆内存各区已使用空间的百分比</span><br><span class="line">  YGC FGC : 表示Young GC、Full GC 的次数</span><br><span class="line">  YGCT FGCT GCT : 表示YoungGC、Full GC 、GC 所用的时间</span><br><span class="line">  CCS : 压缩使用比例</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+<ol start="2">
+<li>年轻代GC情况<blockquote>
+<p>jstat -gcnew [pid] [intervel] [count]</p>
+</blockquote>
+</li>
+</ol>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">Mac:JDK mac$ jstat -gcnew 3157 500 2</span><br><span class="line"> S0C    S1C    S0U    S1U   TT MTT  DSS      EC       EU     YGC     YGCT  </span><br><span class="line"> 512.0  512.0    0.0    0.0  7  15  512.0   2048.0   1065.0     11    0.044</span><br><span class="line"> 512.0  512.0    0.0    0.0  7  15  512.0   2048.0   1065.0     11    0.044</span><br><span class="line"></span><br><span class="line"> S0C S1C EC : S0、S1、E区大小(KB)</span><br><span class="line"> S0U S1U EU : S0、S1、E区已使用大小(KB)</span><br><span class="line"> TT : 对象在新生代存活的次数</span><br><span class="line"> MTT : 对象的最大年龄</span><br><span class="line"> DSS : 期待的Survivor区大小</span><br><span class="line"> </span><br></pre></td></tr></table></figure>
+
+<ol start="3">
+<li>年轻代内存统计<blockquote>
+<p>jstat -gcnewcapacity [pid]</p>
+</blockquote>
+</li>
+</ol>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">Mac:JDK mac$ jstat -gcnewcapacity 3157</span><br><span class="line">  NGCMN      NGCMX       NGC      S0CMX     S0C     S1CMX     S1C       ECMX        EC      YGC   FGC </span><br><span class="line">    3072.0    13312.0     3072.0   4096.0    512.0   4096.0    512.0    12288.0     2048.0    15    14</span><br><span class="line"></span><br><span class="line">  NGCMN NGCMX : 年轻代最小、最大空间</span><br><span class="line">  NGC ：当前年轻代大小</span><br><span class="line">  </span><br></pre></td></tr></table></figure>
+
+<ol start="4">
+<li>年老代<blockquote>
+<p>jstat -gcold [pid] [intervel] [count]</p>
+<p>jstat -gcoldcapacity [pid]</p>
+</blockquote>
+</li>
+<li>元数据空间<blockquote>
+<p>jstat -gcmetacapacity [pid]</p>
+</blockquote>
+</li>
+</ol>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">Mac:JDK mac$ jstat -gcmetacapacity 3157</span><br><span class="line">   MCMN       MCMX        MC       CCSMN      CCSMX       CCSC     YGC   FGC    FGCT     GCT   </span><br><span class="line">       0.0  1056768.0     4864.0        0.0  1048576.0      512.0    17    16    0.491    0.556</span><br><span class="line">   </span><br><span class="line">   CCSMN CCSMX : 压缩类最小、最大空间</span><br><span class="line">   CCSC : 当前压缩类空间大小</span><br><span class="line">  </span><br></pre></td></tr></table></figure>
+
+<h1 id="命令行监控"><a href="#命令行监控" class="headerlink" title="命令行监控"></a>命令行监控</h1><p>命令行监控可结合脚本共同使用</p>
+<h2 id="jcmd"><a href="#jcmd" class="headerlink" title="jcmd"></a>jcmd</h2><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">获取运行的JVM进程：jcmd -l</span><br><span class="line">获取JVM运行的时间：jcmd process_id VM.uptime</span><br><span class="line">获取系统属性：jcmd process_id VM.system_properties</span><br><span class="line">获取JVM调优参数：jcmd process_id VM.flags</span><br><span class="line">获取JVM线程信息：jcmd process_id Thread.print</span><br></pre></td></tr></table></figure>
+
+<h2 id="堆快照文件"><a href="#堆快照文件" class="headerlink" title="堆快照文件"></a>堆快照文件</h2><p>jmap用于导出堆的快照文件，便于后续分析</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">Mac:JDK mac$ jmap -dump:format=b,file=/Users/mac/IdeaProjects/JDK/heap.hprof 3157</span><br><span class="line">Dumping heap to /Users/mac/IdeaProjects/JDK/heap.hprof ...</span><br><span class="line">Heap dump file created</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+<ul>
+<li><a target="_blank" rel="noopener" href="http://www.eclipse.org/mat/downloads.php">堆快照分析工具MAT</a></li>
+</ul>
+<h2 id="线程栈文件"><a href="#线程栈文件" class="headerlink" title="线程栈文件"></a>线程栈文件</h2><p>将线程栈信息导入文件<br>jstack [pid] &gt; threaddump.out | jcmd [pid] Thread.print &gt; .&#x2F;threaddump.out</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">Mac:JDK mac$ jcmd 3157 Thread.print &gt; ./threaddump.out</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+<ul>
+<li><a target="_blank" rel="noopener" href="http://fastthread.io/index.jsp">分析线程栈</a></li>
+</ul>
+<h1 id="图形化监控"><a href="#图形化监控" class="headerlink" title="图形化监控"></a>图形化监控</h1><p>JDK内置有jvisualvm 、jconsole 直观的图形化监控工具</p>
+<h2 id="VisualVM"><a href="#VisualVM" class="headerlink" title="VisualVM"></a>VisualVM</h2><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">通过命令行直接唤醒启动</span><br><span class="line"></span><br><span class="line">Mac:JDK mac$ jvisualvm</span><br></pre></td></tr></table></figure>
+
+<p><img src="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/JVM/Java_VisualVM.png" alt="image"></p>
+<h2 id="Visual-GC"><a href="#Visual-GC" class="headerlink" title="Visual GC"></a>Visual GC</h2><p>Visual GC提供图形化的JVM堆内存使用的动态监控，由VisualVM以插件的形式提供</p>
+<ul>
+<li>设置<a target="_blank" rel="noopener" href="https://visualvm.github.io/pluginscenters.html">插件更新地址</a><br>按JDK需要选择</li>
+</ul>
+<p><img src="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/JVM/VisualGC.png" alt="image"></p>
+<ul>
+<li>堆内存动态监控</li>
+</ul>
+<p><img src="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/JVM/VisualGC_D.png" alt="image"></p>
+<blockquote class="blockquote-center">
+            <i class="fa fa-quote-left"></i>
+            <p> A magician is a man of his word. - Alfred Borden</p>
+<p><a target="_blank" rel="noopener" href="https://movie.douban.com/subject/1780330/">The Prestige</a></p>
+
+            <i class="fa fa-quote-right"></i>
+          </blockquote>
+
+<h1 id="事例"><a href="#事例" class="headerlink" title="事例"></a>事例</h1><p>如何定位服务器 CPU 使用率过高的问题？可以通过如下几个步骤</p>
+<h2 id="获取系统进程信息"><a href="#获取系统进程信息" class="headerlink" title="获取系统进程信息"></a>获取系统进程信息</h2><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">每隔 5s 刷新一次</span></span><br><span class="line">top -c -d5</span><br></pre></td></tr></table></figure>
+<h2 id="找出-CPU-使用率最高的-PID"><a href="#找出-CPU-使用率最高的-PID" class="headerlink" title="找出 CPU 使用率最高的 PID"></a>找出 CPU 使用率最高的 PID</h2><p><img src="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/JVM/topc.png" alt="image"></p>
+<h2 id="获取指定进程的线程信息"><a href="#获取指定进程的线程信息" class="headerlink" title="获取指定进程的线程信息"></a>获取指定进程的线程信息</h2><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">top -H -p 1</span><br></pre></td></tr></table></figure>
+<p><img src="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/JVM/toph.png" alt="image"></p>
+<p>找出 CPU 使用率最高的 PID（这里是线程 ID），并将线程 ID 转换为16进制值</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">printf &#x27;0x%x\n&#x27; 6</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">0x6</span></span><br></pre></td></tr></table></figure>
+
+<h2 id="查询线程信息，并定位源码位置"><a href="#查询线程信息，并定位源码位置" class="headerlink" title="查询线程信息，并定位源码位置"></a>查询线程信息，并定位源码位置</h2><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">jstack 1 | grep 0x6 -A 50</span><br></pre></td></tr></table></figure>
+<p><img src="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/JVM/jstackinfo.png" alt="image"></p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/Java/" rel="tag"># Java</a>
+              <a href="/tags/JVM/" rel="tag"># JVM</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2018/04/13/JVMTuning/" rel="prev" title="JVM调优">
+      <i class="fa fa-chevron-left"></i> JVM调优
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2018/04/21/JVMClassLoader/" rel="next" title="JVM类加载">
+      JVM类加载 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="gitalk-container"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#GC-LOG"><span class="nav-number">1.</span> <span class="nav-text">GC LOG</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#JVM%E9%85%8D%E7%BD%AE%E6%9F%A5%E8%AF%A2"><span class="nav-number">1.1.</span> <span class="nav-text">JVM配置查询</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#GC%E6%97%A5%E5%BF%97%E6%96%87%E4%BB%B6"><span class="nav-number">1.2.</span> <span class="nav-text">GC日志文件</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#jstat"><span class="nav-number">1.3.</span> <span class="nav-text">jstat</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%91%BD%E4%BB%A4%E8%A1%8C%E7%9B%91%E6%8E%A7"><span class="nav-number">2.</span> <span class="nav-text">命令行监控</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#jcmd"><span class="nav-number">2.1.</span> <span class="nav-text">jcmd</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%A0%86%E5%BF%AB%E7%85%A7%E6%96%87%E4%BB%B6"><span class="nav-number">2.2.</span> <span class="nav-text">堆快照文件</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%BA%BF%E7%A8%8B%E6%A0%88%E6%96%87%E4%BB%B6"><span class="nav-number">2.3.</span> <span class="nav-text">线程栈文件</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%9B%BE%E5%BD%A2%E5%8C%96%E7%9B%91%E6%8E%A7"><span class="nav-number">3.</span> <span class="nav-text">图形化监控</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#VisualVM"><span class="nav-number">3.1.</span> <span class="nav-text">VisualVM</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Visual-GC"><span class="nav-number">3.2.</span> <span class="nav-text">Visual GC</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E4%BA%8B%E4%BE%8B"><span class="nav-number">4.</span> <span class="nav-text">事例</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%8E%B7%E5%8F%96%E7%B3%BB%E7%BB%9F%E8%BF%9B%E7%A8%8B%E4%BF%A1%E6%81%AF"><span class="nav-number">4.1.</span> <span class="nav-text">获取系统进程信息</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%89%BE%E5%87%BA-CPU-%E4%BD%BF%E7%94%A8%E7%8E%87%E6%9C%80%E9%AB%98%E7%9A%84-PID"><span class="nav-number">4.2.</span> <span class="nav-text">找出 CPU 使用率最高的 PID</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%8E%B7%E5%8F%96%E6%8C%87%E5%AE%9A%E8%BF%9B%E7%A8%8B%E7%9A%84%E7%BA%BF%E7%A8%8B%E4%BF%A1%E6%81%AF"><span class="nav-number">4.3.</span> <span class="nav-text">获取指定进程的线程信息</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%9F%A5%E8%AF%A2%E7%BA%BF%E7%A8%8B%E4%BF%A1%E6%81%AF%EF%BC%8C%E5%B9%B6%E5%AE%9A%E4%BD%8D%E6%BA%90%E7%A0%81%E4%BD%8D%E7%BD%AE"><span class="nav-number">4.4.</span> <span class="nav-text">查询线程信息，并定位源码位置</span></a></li></ol></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="Mark"
+      src="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/avatar_what.png">
+  <p class="site-author-name" itemprop="name">Mark</p>
+  <div class="site-description" itemprop="description">Stay Hungry, Stay Foolish.</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">64</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">18</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">28</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://space.bilibili.com/1268283" title="Bilibili → https:&#x2F;&#x2F;space.bilibili.com&#x2F;1268283" rel="noopener" target="_blank"><i class="fas fa-video fa-fw"></i>Bilibili</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://www.youtube.com/channel/UCgo_k4UEkGUNrG-resCDVKw" title="YouTube → https:&#x2F;&#x2F;www.youtube.com&#x2F;channel&#x2F;UCgo_k4UEkGUNrG-resCDVKw" rel="noopener" target="_blank"><i class="fab fa-youtube fa-fw"></i>YouTube</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 2015 – 
+  <span itemprop="copyrightYear">2024</span>
+  <span class="with-love">
+    <i class="fas fa-gamepad"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Mark</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-chart-area"></i>
+    </span>
+    <span title="站点总字数">67k</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+    <span title="站点阅读时长">4:02</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://mist.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a> 强力驱动
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.css">
+
+<script>
+NexT.utils.loadComments(document.querySelector('#gitalk-container'), () => {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.js', () => {
+    var gitalk = new Gitalk({
+      clientID    : '1d971a932df33dd64e19',
+      clientSecret: 'a51b84396586902b536b1b26a917003af50ea152',
+      repo        : 'hexo-comments',
+      owner       : 'dreamming',
+      admin       : ['dreamming'],
+      id          : '26105afb8947a1a9bb60f5a4ab94bfa9',
+        language: 'zh-CN',
+      distractionFreeMode: false
+    });
+    gitalk.render('gitalk-container');
+  }, window.Gitalk);
+});
+</script>
+
+</body>
+</html>

@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.4.2">
+
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-N9NJ5HB');</script>
+<!-- End Google Tag Manager -->
+
+<!-- Google Tag Manager (noscript) -->
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-N9NJ5HB"
+height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+<!-- End Google Tag Manager (noscript) -->
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"whathowhy.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"hide","padding":18,"offset":12,"onmobile":true},"copycode":{"enable":true,"show_result":true,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="文章主要记录我是如何使用Vector获取系统观测数据，并将观测数据存储到Clickhouse中 ClickhouseClickhouse由C++语言实现，是一种快速的面向列存储的OLAP数据库管理系统，支持通过SQL查询并实时生成分析报表">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Vector With ClickHouse">
+<meta property="og:url" content="https://whathowhy.com/2021/07/18/vector-with-clickhouse/index.html">
+<meta property="og:site_name" content="8lovelife&#39;s life">
+<meta property="og:description" content="文章主要记录我是如何使用Vector获取系统观测数据，并将观测数据存储到Clickhouse中 ClickhouseClickhouse由C++语言实现，是一种快速的面向列存储的OLAP数据库管理系统，支持通过SQL查询并实时生成分析报表">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/photos/4.png">
+<meta property="og:image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/Monitoring/host_metrics_clickhouse.png">
+<meta property="article:published_time" content="2021-07-18T08:49:20.000Z">
+<meta property="article:modified_time" content="2024-11-24T15:09:32.166Z">
+<meta property="article:author" content="Mark">
+<meta property="article:tag" content="ClickHouse">
+<meta property="article:tag" content="Docker">
+<meta property="article:tag" content="运维">
+<meta property="article:tag" content="Vector">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/photos/4.png">
+
+<link rel="canonical" href="https://whathowhy.com/2021/07/18/vector-with-clickhouse/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>Vector With ClickHouse | 8lovelife's life</title>
+  
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-MSKY7FDVPG"></script>
+    <script>
+      if (CONFIG.hostname === location.hostname) {
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-MSKY7FDVPG');
+      }
+    </script>
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">8lovelife's life</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">M&M</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://whathowhy.com/2021/07/18/vector-with-clickhouse/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/avatar_what.png">
+      <meta itemprop="name" content="Mark">
+      <meta itemprop="description" content="Stay Hungry, Stay Foolish.">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="8lovelife's life">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Vector With ClickHouse
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2021-07-18 16:49:20" itemprop="dateCreated datePublished" datetime="2021-07-18T16:49:20+08:00">2021-07-18</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2024-11-24 23:09:32" itemprop="dateModified" datetime="2024-11-24T23:09:32+08:00">2024-11-24</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E7%9B%91%E6%8E%A7/" itemprop="url" rel="index"><span itemprop="name">监控</span></a>
+                </span>
+            </span>
+
+          <br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="far fa-file-word"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>705</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="far fa-clock"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              <span>3 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <img src="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/photos/4.png" class="full-image" />
+
+<p>文章主要记录我是如何使用Vector获取系统观测数据，并将观测数据存储到Clickhouse中</p>
+<h1 id="Clickhouse"><a href="#Clickhouse" class="headerlink" title="Clickhouse"></a>Clickhouse</h1><p>Clickhouse由C++语言实现，是一种快速的面向列存储的OLAP数据库管理系统，支持通过SQL查询并实时生成分析报表</p>
+<span id="more"></span>
+
+<h2 id="Clickhouse-Server"><a href="#Clickhouse-Server" class="headerlink" title="Clickhouse Server"></a>Clickhouse Server</h2><p>创建 Clickhouse Server，docker-compose.yml 内容如下</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line">version: &quot;3&quot;</span><br><span class="line"></span><br><span class="line">volumes: </span><br><span class="line">    clickhouse_data:</span><br><span class="line">    clickhouse_conf:</span><br><span class="line">networks:</span><br><span class="line">  default:</span><br><span class="line">    external: true</span><br><span class="line">    name: monitor_monitor-net</span><br><span class="line"></span><br><span class="line">services: </span><br><span class="line">    server:</span><br><span class="line">        image: yandex/clickhouse-server</span><br><span class="line">        container_name: clickhouse_service</span><br><span class="line">        volumes: </span><br><span class="line">            - clickhouse_conf:/etc/clickhouse-server</span><br><span class="line">            - clickhouse_data:/var/lib/clickhouse</span><br><span class="line">        ports: </span><br><span class="line">            - 8123:8123</span><br><span class="line">        ulimits: </span><br><span class="line">            nofile:</span><br><span class="line">                soft: &quot;262144&quot;</span><br><span class="line">                hard: &quot;262144&quot;</span><br></pre></td></tr></table></figure>
+
+<h2 id="数据表"><a href="#数据表" class="headerlink" title="数据表"></a>数据表</h2><p>创建数据存储所需表</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">docker run -it --rm  --network monitor_monitor-net \</span><br><span class="line">yandex/clickhouse-client -h clickhouse_service --port 9000</span><br><span class="line"></span><br><span class="line">CREATE TABLE host_metrics_memory (</span><br><span class="line">  namespace String,</span><br><span class="line">  name String,</span><br><span class="line">  host String,</span><br><span class="line">  kind String,</span><br><span class="line">  collector String,</span><br><span class="line">  metric_name String,</span><br><span class="line">  metric_type String,</span><br><span class="line">  metric_value Float64,</span><br><span class="line">  timestamp Datetime64</span><br><span class="line">)ENGINE=MergeTree()</span><br><span class="line">ORDER BY timestamp;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+<h1 id="Vector"><a href="#Vector" class="headerlink" title="Vector"></a>Vector</h1><p>Vector由Rust语言实现，用于构建可观测数据的轻量级工具</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">docker run -d --network monitor_monitor-net \</span><br><span class="line">-v ~/Projects/compose/vector/host_metrics.vector.toml:/etc/vector/vector.toml:ro \</span><br><span class="line">-v /var/run/docker.sock:/var/run/docker.sock \</span><br><span class="line">--name host_metrics timberio/vector:latest-debian</span><br></pre></td></tr></table></figure>
+
+<h1 id="Grafana"><a href="#Grafana" class="headerlink" title="Grafana"></a>Grafana</h1><p>使用Grafana将搜集的指标数据图表化，数据源使用Clickhouse</p>
+<ul>
+<li>Grafana 默认未安装 Clickhouse 数据源<blockquote>
+<p>GF_INSTALL_PLUGINS&#x3D;vertamedia-clickhouse-datasource 用于安装 clickhouse 数据源，插件地址：<a target="_blank" rel="noopener" href="https://storage.googleapis.com/plugins-community/vertamedia-clickhouse-datasource/release/2.3.1/vertamedia-clickhouse-datasource-2.3.1.zip">https://storage.googleapis.com/plugins-community/vertamedia-clickhouse-datasource/release/2.3.1/vertamedia-clickhouse-datasource-2.3.1.zip</a></p>
+</blockquote>
+</li>
+</ul>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line">version: &quot;3&quot;</span><br><span class="line"></span><br><span class="line">volumes:</span><br><span class="line">    grafana_data:</span><br><span class="line">    grafana_conf:</span><br><span class="line">    grafana_log:</span><br><span class="line"></span><br><span class="line">networks:</span><br><span class="line">  default:</span><br><span class="line">    external: true</span><br><span class="line">    name: monitor_monitor-net</span><br><span class="line"></span><br><span class="line">services: </span><br><span class="line">    grafana:</span><br><span class="line">        image: grafana/grafana</span><br><span class="line">        container_name: grafana_service</span><br><span class="line">        volumes:</span><br><span class="line">            - grafana_data:/var/lib/grafana</span><br><span class="line">            - grafana_conf:/etc/grafana</span><br><span class="line">            - grafana_log:/var/log/grafana</span><br><span class="line">        environment: </span><br><span class="line">            - GF_INSTALL_PLUGINS=vertamedia-clickhouse-datasource</span><br><span class="line">        ports: </span><br><span class="line">            - 3000:3000</span><br><span class="line">        labels: </span><br><span class="line">            org.label-schema.group: &quot;monitoring&quot;</span><br></pre></td></tr></table></figure>
+<p><img src="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/Monitoring/host_metrics_clickhouse.png"></p>
+<h1 id="附录"><a href="#附录" class="headerlink" title="附录"></a>附录</h1><h2 id="host-metrics-vector-toml"><a href="#host-metrics-vector-toml" class="headerlink" title="host_metrics.vector.toml"></a>host_metrics.vector.toml</h2><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br></pre></td><td class="code"><pre><span class="line">[sources.host_metrics]</span><br><span class="line">  type = &quot;host_metrics&quot;</span><br><span class="line">  collectors = [&quot;cpu&quot;, &quot;disk&quot;, &quot;filesystem&quot;, &quot;load&quot;, &quot;host&quot;, &quot;memory&quot;, &quot;network&quot;]</span><br><span class="line">  scrape_interval_secs = 60</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">[transforms.metrics_to_logs]</span><br><span class="line">  type = &quot;metric_to_log&quot;</span><br><span class="line">  inputs = [&quot;host_metrics&quot;]</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">[transforms.remap]</span><br><span class="line">  type = &quot;remap&quot;</span><br><span class="line">  inputs = [&quot;metrics_to_logs&quot;]</span><br><span class="line">  source = &#x27;&#x27;&#x27;</span><br><span class="line">  ts,_= format_timestamp(.timestamp, &quot;%F %T&quot;)</span><br><span class="line">  .metric_value = .gauge.value</span><br><span class="line">  .metric_type = &quot;gauge&quot;</span><br><span class="line">  del(.gauge)</span><br><span class="line">  if .metric_value == null &#123;</span><br><span class="line">      .metric_value = .counter.value</span><br><span class="line">      .metric_type = &quot;counter&quot;</span><br><span class="line">      del(.counter)</span><br><span class="line">  &#125;</span><br><span class="line">  .metric_name = del(.name)</span><br><span class="line">  .timestamp = ts</span><br><span class="line">  .collector = .tags.collector</span><br><span class="line">  if .tags.collector == &quot;cpu&quot; &#123;</span><br><span class="line">    .cpu= .tags.cpu</span><br><span class="line">    .mode= .tags.mode</span><br><span class="line">  &#125; else if (.tags.collector == &quot;filesystem&quot;)&#123;</span><br><span class="line">    .filesystem= .tags.filesystem</span><br><span class="line">    .device = .tags.device</span><br><span class="line">  &#125; else if (.tags.collector == &quot;network&quot; || .tags.collector == &quot;disk&quot;)&#123;</span><br><span class="line">    .device = .tags.device</span><br><span class="line">  &#125;</span><br><span class="line">  del(.tags)</span><br><span class="line">  &#x27;&#x27;&#x27;</span><br><span class="line"></span><br><span class="line">[transforms.metrics_router]</span><br><span class="line">  type = &quot;route&quot;</span><br><span class="line">  inputs = [&quot;remap&quot;]</span><br><span class="line">  route.host=&#x27;.collector == &quot;host&quot;&#x27;</span><br><span class="line">  route.memory=&#x27;.collector == &quot;memory&quot;&#x27;</span><br><span class="line">  route.cpu=&#x27;.collector == &quot;cpu&quot;&#x27;</span><br><span class="line">  route.network=&#x27;.collector == &quot;network&quot;&#x27;</span><br><span class="line">  route.filesystem=&#x27;.collector == &quot;filesystem&quot;&#x27;</span><br><span class="line">  route.disk=&#x27;.collector == &quot;disk&quot;&#x27;</span><br><span class="line"></span><br><span class="line">[sinks.memory_clickhouse]</span><br><span class="line">type = &quot;clickhouse&quot;</span><br><span class="line">inputs = [&quot;metrics_router.memory&quot;]</span><br><span class="line">compression = &quot;gzip&quot;</span><br><span class="line">endpoint = &quot;http://clickhouse_service:8123&quot;</span><br><span class="line">table = &quot;host_metrics_memory&quot;</span><br><span class="line">batch.timeout_secs = 5</span><br><span class="line"></span><br><span class="line">[sinks.cpu_clickhouse]</span><br><span class="line">type = &quot;clickhouse&quot;</span><br><span class="line">inputs = [&quot;metrics_router.cpu&quot;]</span><br><span class="line">compression = &quot;gzip&quot;</span><br><span class="line">endpoint = &quot;http://clickhouse_service:8123&quot;</span><br><span class="line">table = &quot;host_metrics_cpu&quot;</span><br><span class="line">batch.timeout_secs = 5</span><br><span class="line"></span><br><span class="line">[sinks.host_clickhouse]</span><br><span class="line">type = &quot;clickhouse&quot;</span><br><span class="line">inputs = [&quot;metrics_router.host&quot;]</span><br><span class="line">compression = &quot;gzip&quot;</span><br><span class="line">endpoint = &quot;http://clickhouse_service:8123&quot;</span><br><span class="line">table = &quot;host_metrics_host&quot;</span><br><span class="line">batch.timeout_secs = 5</span><br><span class="line"></span><br><span class="line">[sinks.network_clickhouse]</span><br><span class="line">type = &quot;clickhouse&quot;</span><br><span class="line">inputs = [&quot;metrics_router.network&quot;]</span><br><span class="line">compression = &quot;gzip&quot;</span><br><span class="line">endpoint = &quot;http://clickhouse_service:8123&quot;</span><br><span class="line">table = &quot;host_metrics_network&quot;</span><br><span class="line">batch.timeout_secs = 5</span><br><span class="line"></span><br><span class="line">[sinks.filesystem_clickhouse]</span><br><span class="line">type = &quot;clickhouse&quot;</span><br><span class="line">inputs = [&quot;metrics_router.filesystem&quot;]</span><br><span class="line">compression = &quot;gzip&quot;</span><br><span class="line">endpoint = &quot;http://clickhouse_service:8123&quot;</span><br><span class="line">table = &quot;host_metrics_filesystem&quot;</span><br><span class="line">batch.timeout_secs = 5</span><br><span class="line"></span><br><span class="line">[sinks.disk_clickhouse]</span><br><span class="line">type = &quot;clickhouse&quot;</span><br><span class="line">inputs = [&quot;metrics_router.disk&quot;]</span><br><span class="line">compression = &quot;gzip&quot;</span><br><span class="line">endpoint = &quot;http://clickhouse_service:8123&quot;</span><br><span class="line">table = &quot;host_metrics_disk&quot;</span><br><span class="line">batch.timeout_secs = 5</span><br></pre></td></tr></table></figure>
+
+<h2 id="表"><a href="#表" class="headerlink" title="表"></a>表</h2><p>host、cpu、filesystem、network、disk</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br></pre></td><td class="code"><pre><span class="line">CREATE TABLE host_metrics_host (</span><br><span class="line">  namespace String,</span><br><span class="line">  name String,</span><br><span class="line">  host String,</span><br><span class="line">  kind String,</span><br><span class="line">  collector String,</span><br><span class="line">  metric_name String,</span><br><span class="line">  metric_type String,</span><br><span class="line">  metric_value Float64,</span><br><span class="line">  timestamp Datetime64</span><br><span class="line">)ENGINE=MergeTree()</span><br><span class="line">ORDER BY timestamp;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">CREATE TABLE host_metrics_cpu (</span><br><span class="line">  namespace String,</span><br><span class="line">  name String,</span><br><span class="line">  host String,</span><br><span class="line">  kind String,</span><br><span class="line">  collector String,</span><br><span class="line">  cpu String,</span><br><span class="line">  mode String,</span><br><span class="line">  metric_name String,</span><br><span class="line">  metric_type String,</span><br><span class="line">  metric_value Float64,</span><br><span class="line">  timestamp Datetime64</span><br><span class="line">)ENGINE=MergeTree()</span><br><span class="line">ORDER BY timestamp;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">CREATE TABLE host_metrics_filesystem (</span><br><span class="line">  namespace String,</span><br><span class="line">  name String,</span><br><span class="line">  host String,</span><br><span class="line">  kind String,</span><br><span class="line">  collector String,</span><br><span class="line">  filesystem String,</span><br><span class="line">  device String,</span><br><span class="line">  metric_name String,</span><br><span class="line">  metric_type String,</span><br><span class="line">  metric_value Float64,</span><br><span class="line">  timestamp Datetime64</span><br><span class="line">)ENGINE=MergeTree()</span><br><span class="line">ORDER BY timestamp;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">CREATE TABLE host_metrics_network (</span><br><span class="line">  namespace String,</span><br><span class="line">  name String,</span><br><span class="line">  host String,</span><br><span class="line">  kind String,</span><br><span class="line">  collector String,</span><br><span class="line">  device String,</span><br><span class="line">  metric_name String,</span><br><span class="line">  metric_type String,</span><br><span class="line">  metric_value Float64,</span><br><span class="line">  timestamp Datetime64</span><br><span class="line">)ENGINE=MergeTree()</span><br><span class="line">ORDER BY timestamp;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">CREATE TABLE host_metrics_disk (</span><br><span class="line">  namespace String,</span><br><span class="line">  name String,</span><br><span class="line">  host String,</span><br><span class="line">  kind String,</span><br><span class="line">  collector String,</span><br><span class="line">  device String,</span><br><span class="line">  metric_name String,</span><br><span class="line">  metric_type String,</span><br><span class="line">  metric_value Float64,</span><br><span class="line">  timestamp Datetime64</span><br><span class="line">)ENGINE=MergeTree()</span><br><span class="line">ORDER BY timestamp;</span><br></pre></td></tr></table></figure>
+
+<blockquote class="blockquote-center">
+            <i class="fa fa-quote-left"></i>
+            <p> There’s nothing left to do but tell stories. - Noodles</p>
+<p><a target="_blank" rel="noopener" href="https://movie.douban.com/subject/1292262/">Once Upon a Time in America</a></p>
+
+            <i class="fa fa-quote-right"></i>
+          </blockquote>
+<!--stackedit_data:
+eyJoaXN0b3J5IjpbMTcwMTU2MDMzNF19
+-->
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/ClickHouse/" rel="tag"># ClickHouse</a>
+              <a href="/tags/Docker/" rel="tag"># Docker</a>
+              <a href="/tags/%E8%BF%90%E7%BB%B4/" rel="tag"># 运维</a>
+              <a href="/tags/Vector/" rel="tag"># Vector</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2021/06/19/docker-host-monitor/" rel="prev" title="Docker容器与主机监控">
+      <i class="fa fa-chevron-left"></i> Docker容器与主机监控
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2021/11/21/RustAsync/" rel="next" title="Rust异步编程">
+      Rust异步编程 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="gitalk-container"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#Clickhouse"><span class="nav-number">1.</span> <span class="nav-text">Clickhouse</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#Clickhouse-Server"><span class="nav-number">1.1.</span> <span class="nav-text">Clickhouse Server</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%95%B0%E6%8D%AE%E8%A1%A8"><span class="nav-number">1.2.</span> <span class="nav-text">数据表</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Vector"><span class="nav-number">2.</span> <span class="nav-text">Vector</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Grafana"><span class="nav-number">3.</span> <span class="nav-text">Grafana</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E9%99%84%E5%BD%95"><span class="nav-number">4.</span> <span class="nav-text">附录</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#host-metrics-vector-toml"><span class="nav-number">4.1.</span> <span class="nav-text">host_metrics.vector.toml</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%A1%A8"><span class="nav-number">4.2.</span> <span class="nav-text">表</span></a></li></ol></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="Mark"
+      src="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/avatar_what.png">
+  <p class="site-author-name" itemprop="name">Mark</p>
+  <div class="site-description" itemprop="description">Stay Hungry, Stay Foolish.</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">64</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">18</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">28</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://space.bilibili.com/1268283" title="Bilibili → https:&#x2F;&#x2F;space.bilibili.com&#x2F;1268283" rel="noopener" target="_blank"><i class="fas fa-video fa-fw"></i>Bilibili</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://www.youtube.com/channel/UCgo_k4UEkGUNrG-resCDVKw" title="YouTube → https:&#x2F;&#x2F;www.youtube.com&#x2F;channel&#x2F;UCgo_k4UEkGUNrG-resCDVKw" rel="noopener" target="_blank"><i class="fab fa-youtube fa-fw"></i>YouTube</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 2015 – 
+  <span itemprop="copyrightYear">2024</span>
+  <span class="with-love">
+    <i class="fas fa-gamepad"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Mark</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-chart-area"></i>
+    </span>
+    <span title="站点总字数">67k</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+    <span title="站点阅读时长">4:02</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://mist.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a> 强力驱动
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.css">
+
+<script>
+NexT.utils.loadComments(document.querySelector('#gitalk-container'), () => {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.js', () => {
+    var gitalk = new Gitalk({
+      clientID    : '1d971a932df33dd64e19',
+      clientSecret: 'a51b84396586902b536b1b26a917003af50ea152',
+      repo        : 'hexo-comments',
+      owner       : 'dreamming',
+      admin       : ['dreamming'],
+      id          : '338b681862749d1e1e799578bbb58054',
+        language: 'zh-CN',
+      distractionFreeMode: false
+    });
+    gitalk.render('gitalk-container');
+  }, window.Gitalk);
+});
+</script>
+
+</body>
+</html>

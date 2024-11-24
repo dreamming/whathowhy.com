@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.4.2">
+
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-N9NJ5HB');</script>
+<!-- End Google Tag Manager -->
+
+<!-- Google Tag Manager (noscript) -->
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-N9NJ5HB"
+height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+<!-- End Google Tag Manager (noscript) -->
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"whathowhy.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"hide","padding":18,"offset":12,"onmobile":true},"copycode":{"enable":true,"show_result":true,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="记录 Java中的堆与栈究竟是什么，JVM在计算机物理内存中是如何工作的 计算机内存结构 计算机中存在不同类型的内存包括：RAM，CPU寄存器，缓存CACHE等   物理内存 物理内存一般指的是RAM与存储器，CPU与RAM或寄存器通信依靠的是地址总线。总线的宽度决定了CPU与内存间通信的数据量。如32位的地址总线寻址范围为：0x00000000~0xffffffff，即232个内存位置，每个">
+<meta property="og:type" content="article">
+<meta property="og:title" content="JVM内存管理">
+<meta property="og:url" content="https://whathowhy.com/2018/04/04/JVMMemoryManage/index.html">
+<meta property="og:site_name" content="8lovelife&#39;s life">
+<meta property="og:description" content="记录 Java中的堆与栈究竟是什么，JVM在计算机物理内存中是如何工作的 计算机内存结构 计算机中存在不同类型的内存包括：RAM，CPU寄存器，缓存CACHE等   物理内存 物理内存一般指的是RAM与存储器，CPU与RAM或寄存器通信依靠的是地址总线。总线的宽度决定了CPU与内存间通信的数据量。如32位的地址总线寻址范围为：0x00000000~0xffffffff，即232个内存位置，每个">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/photos/33.png">
+<meta property="og:image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/Computer.png">
+<meta property="og:image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/JMM.png">
+<meta property="og:image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/Heap.png">
+<meta property="article:published_time" content="2018-04-03T17:52:02.000Z">
+<meta property="article:modified_time" content="2024-11-24T15:09:32.162Z">
+<meta property="article:author" content="Mark">
+<meta property="article:tag" content="Java">
+<meta property="article:tag" content="JVM">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/photos/33.png">
+
+<link rel="canonical" href="https://whathowhy.com/2018/04/04/JVMMemoryManage/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>JVM内存管理 | 8lovelife's life</title>
+  
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-MSKY7FDVPG"></script>
+    <script>
+      if (CONFIG.hostname === location.hostname) {
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-MSKY7FDVPG');
+      }
+    </script>
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">8lovelife's life</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">M&M</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://whathowhy.com/2018/04/04/JVMMemoryManage/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/avatar_what.png">
+      <meta itemprop="name" content="Mark">
+      <meta itemprop="description" content="Stay Hungry, Stay Foolish.">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="8lovelife's life">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          JVM内存管理
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2018-04-04 01:52:02" itemprop="dateCreated datePublished" datetime="2018-04-04T01:52:02+08:00">2018-04-04</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2024-11-24 23:09:32" itemprop="dateModified" datetime="2024-11-24T23:09:32+08:00">2024-11-24</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/JVM/" itemprop="url" rel="index"><span itemprop="name">JVM</span></a>
+                </span>
+            </span>
+
+          <br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="far fa-file-word"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>1.7k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="far fa-clock"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              <span>6 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <img src="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/photos/33.png" class="full-image" />
+
+<p><em><strong>记录 Java中的堆与栈究竟是什么，JVM在计算机物理内存中是如何工作的</strong></em></p>
+<h1 id="计算机内存结构"><a href="#计算机内存结构" class="headerlink" title="计算机内存结构"></a>计算机内存结构</h1><blockquote>
+<p><strong>计算机中存在不同类型的内存包括：RAM，CPU寄存器，缓存CACHE等</strong></p>
+</blockquote>
+<p><img src="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/Computer.png" alt="image"></p>
+<h2 id="物理内存"><a href="#物理内存" class="headerlink" title="物理内存"></a>物理内存</h2><blockquote>
+<p>物理内存一般指的是RAM与存储器，CPU与RAM或寄存器通信依靠的是地址总线。总线的宽度决定了CPU与内存间通信的数据量。如32位的地址总线寻址范围为：0x00000000~0xffffffff，即2<sup>32</sup>个内存位置，每个内存位置会引用一个字节，所以2<sup>32</sup> byte &#x3D; 4GB，计算机的内存是通过操作系统进行分配的，不同进程申请到的内存是逻辑上隔离的</p>
+</blockquote>
+<h2 id="虚拟内存"><a href="#虚拟内存" class="headerlink" title="虚拟内存"></a>虚拟内存</h2><blockquote>
+<p>操作系统按照进程管理内存的申请，进程间各自内存由操作系统保证独立性，独立性不表示一个内存空间只能由一个进程使用。虚拟内存使得不同进程间可以共享内存空间，然而逻辑上不同进程是不能互相访问内存的。当一个进程不活动的情况下，操作系统会将这个进程中的数据移动到磁盘文件中（Windows中的页面文件或者Linux中的swap区），当不活跃进程恢复则操作系统会把磁盘数据重新交换到物理内存中（磁盘IO开销远大于读内存，应该避免频繁的内存交换），而真正高效的内存留给活跃进程使用。若Linux中的swap区活跃度较高说明物理内存的已经不足，swap区被频繁使用会导致系统运行缓慢。虚拟内存提高了内存利用率，而且能够扩展内存的地址空间，如虚拟内存映射到物理内存、文件、其他存储设备上</p>
+</blockquote>
+<h2 id="内核空间与用户空间"><a href="#内核空间与用户空间" class="headerlink" title="内核空间与用户空间"></a>内核空间与用户空间</h2><blockquote>
+<ul>
+<li>内核空间：只要是操作系统运行时使用的用于程序调度、连接硬件资源等的操作逻辑</li>
+<li>用户空间：程序真正能够使用的申请地址空间</li>
+</ul>
+<p>通常网络传输的数据一般从内核空间传送到远端计算机的内核空间，然后将数据从内核空间复制到用户空间供用户使用，这种数据COPY是很耗时的（内核态到用户态的切换</p>
+</blockquote>
+<h1 id="JMM内存模型"><a href="#JMM内存模型" class="headerlink" title="JMM内存模型"></a>JMM内存模型</h1><blockquote>
+<p><em><strong>JMM是JVM针对物理内存抽象出来的Java内存模型，是JVM在计算机内存中的工作方式。JVM按照Java运行时数据的存储结构定义Java内存模型</strong></em></p>
+</blockquote>
+<p><img src="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/JMM.png" alt="image"></p>
+<span id="more"></span>
+
+<h2 id="PC寄存器"><a href="#PC寄存器" class="headerlink" title="PC寄存器"></a>PC寄存器</h2><blockquote>
+<p>PC寄存器用来保存当前线程正常执行的程序的内存地址，当多线程交叉中断执行时线程能够按照之前中断时的指令继续执行</p>
+</blockquote>
+<h2 id="Java栈区"><a href="#Java栈区" class="headerlink" title="Java栈区"></a>Java栈区</h2><blockquote>
+<p>Java中的栈区与线程相关联，栈主要用来执行程序。JVM为每个新建线程创建栈区，栈区各线程不共享。栈区由多个栈帧组成，栈帧包含方法局部变量、操作栈、返回值等信息。每当程序进入方法都会创建一个栈帧（入栈，方法执行完毕后栈帧会弹出（出栈，弹出的栈帧元素为返回值存入操作栈中。PC寄存器指向活动栈帧（栈区顶部</p>
+</blockquote>
+<h2 id="堆"><a href="#堆" class="headerlink" title="堆"></a>堆</h2><blockquote>
+<p>堆是Java对象存储的位置，由JVM动态开辟、自动回收，堆是Java运行时的数据区。堆是Java线程共享的区域，多线程访问存在一致性问题.堆区结构</p>
+</blockquote>
+<p><img src="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/Heap.png" alt="image"></p>
+<h3 id="堆的组成"><a href="#堆的组成" class="headerlink" title="堆的组成"></a>堆的组成</h3><blockquote>
+<ul>
+<li>Young区：Java新创建的对象都在Eden区，当Eden区满后会触发minor GC 将Eden区存活的对象复制到其中一个Survivor区，另一个Survivor区同样将存活对象复制到这个Survivor区，始终保证有一个Survivor区空置</li>
+<li>Old区：Old区存储的是minor GC后 Yong区仍然存活的对象。当Eden区满后将对象复制到Survivor区。<sup><strong>1.</strong></sup>若Survivor空间不总则对象会被放置到Old区。<sup><strong>2.</strong></sup>若Survivor区中经过多次minor GC 存在 存活多次的“老”对象，也直接放置在Old区。Old区满后将触发Full GC</li>
+<li>Metaspace区：JDK1.8将Perm区移除取而代之为Metaspace区，Metaspace区为native memory</li>
+</ul>
+</blockquote>
+<h3 id="不同堆区大小设置"><a href="#不同堆区大小设置" class="headerlink" title="不同堆区大小设置"></a>不同堆区大小设置</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">java -Xms100M -Xmx200M -Xmn100M -Xss256K -XX:MetaspaceSize=200M -XX:MaxMetaspaceSize=400M</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<ul>
+<li>-Xms100M : 设置JVM初始堆内存大小</li>
+<li>-Xmx200M : 设置JVM最大分配的堆内存</li>
+<li>-Xmn100M : 设置Young区大小</li>
+<li>-XX:NewRatio&#x3D;4 : 设置Young区与Old区的比值，Young区：Old区 &#x3D; 1:4</li>
+<li>-XX:SurvivorRatio&#x3D;4 : 设置Eden区与Survivor区的比值，From：To：Eden区 &#x3D; 1:1:4</li>
+<li>-XX:MetaspaceSize&#x3D;200M : 设置Metaspace区初始大小</li>
+<li>-XX:MaxMetaspaceSize&#x3D;400M : 设置Metaspace区最大值（若未设置则JVM会动态调整，无上限</li>
+<li>-Xss256K : 设置每个线程栈大小</li>
+</ul>
+</blockquote>
+<h2 id="方法区"><a href="#方法区" class="headerlink" title="方法区"></a>方法区</h2><blockquote>
+<p>Metaspace区是方法区的实现，主要存放类的结构信息、方法体、常量池、接口初始化，构造函数等，方法区的大小在程序启动一段时间基本就固定了，JVM已经加载了程序所需的类信息，若存在对类的动态编译则需要关注方法区的大小</p>
+</blockquote>
+<h2 id="运行常量池"><a href="#运行常量池" class="headerlink" title="运行常量池"></a>运行常量池</h2><blockquote>
+<p>常量池是方法区的一部分，常量池代表运行时每个class文件中的常量表，常量表包括：方法、域的引用（运行时会进行解析指向真实地址、编译期的数字常量。每个class或interface常量池都是在创建class或interface时创建的</p>
+</blockquote>
+<h2 id="本地方法栈"><a href="#本地方法栈" class="headerlink" title="本地方法栈"></a>本地方法栈</h2><blockquote>
+<p>本地方法栈是  <sup><strong>1.</strong></sup>JVM调用本地方法（C或C++实现的方法）时的栈空间。<sup><strong>2.</strong></sup>JVM利用JIT技术时会将Java代码重新编译为本地代码，编译后的代码会利用本地方法栈追踪方法的执行</p>
+</blockquote>
+<h1 id="内存分配策略"><a href="#内存分配策略" class="headerlink" title="内存分配策略"></a>内存分配策略</h1><blockquote>
+<ul>
+<li>静态内存分配：在程序编译阶段就已经确定每个数据在运行是的存储空间（java中的基本类型、对象引用，递归、嵌套结构会导致编译阶段无法确认程序运行存储空间大小</li>
+<li>栈内存分配：程序对数据区的需求在编译时是未知的，只有运行时才能知道，但是在程序入口处 必须知道该程序所需的数据区大小 才能够为其分配内存，栈内存按照先进后出原则进行分配</li>
+<li>堆内存分配：只有在程序真正运行到相应的代码时才知道空间的大小</li>
+</ul>
+</blockquote>
+<blockquote class="blockquote-center">
+            <i class="fa fa-quote-left"></i>
+            <p> The only way to fix things is to keep reliving them. - Colter Stevens</p>
+<p><a target="_blank" rel="noopener" href="https://movie.douban.com/subject/3075287/">Source Code</a></p>
+
+            <i class="fa fa-quote-right"></i>
+          </blockquote>
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/Java/" rel="tag"># Java</a>
+              <a href="/tags/JVM/" rel="tag"># JVM</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2018/03/31/JavaCharCoder/" rel="prev" title="Java Char 编码">
+      <i class="fa fa-chevron-left"></i> Java Char 编码
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2018/04/05/JVMMemoryCollection/" rel="next" title="JVM内存回收">
+      JVM内存回收 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="gitalk-container"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E8%AE%A1%E7%AE%97%E6%9C%BA%E5%86%85%E5%AD%98%E7%BB%93%E6%9E%84"><span class="nav-number">1.</span> <span class="nav-text">计算机内存结构</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%89%A9%E7%90%86%E5%86%85%E5%AD%98"><span class="nav-number">1.1.</span> <span class="nav-text">物理内存</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%99%9A%E6%8B%9F%E5%86%85%E5%AD%98"><span class="nav-number">1.2.</span> <span class="nav-text">虚拟内存</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%86%85%E6%A0%B8%E7%A9%BA%E9%97%B4%E4%B8%8E%E7%94%A8%E6%88%B7%E7%A9%BA%E9%97%B4"><span class="nav-number">1.3.</span> <span class="nav-text">内核空间与用户空间</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#JMM%E5%86%85%E5%AD%98%E6%A8%A1%E5%9E%8B"><span class="nav-number">2.</span> <span class="nav-text">JMM内存模型</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#PC%E5%AF%84%E5%AD%98%E5%99%A8"><span class="nav-number">2.1.</span> <span class="nav-text">PC寄存器</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Java%E6%A0%88%E5%8C%BA"><span class="nav-number">2.2.</span> <span class="nav-text">Java栈区</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%A0%86"><span class="nav-number">2.3.</span> <span class="nav-text">堆</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%A0%86%E7%9A%84%E7%BB%84%E6%88%90"><span class="nav-number">2.3.1.</span> <span class="nav-text">堆的组成</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%B8%8D%E5%90%8C%E5%A0%86%E5%8C%BA%E5%A4%A7%E5%B0%8F%E8%AE%BE%E7%BD%AE"><span class="nav-number">2.3.2.</span> <span class="nav-text">不同堆区大小设置</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%96%B9%E6%B3%95%E5%8C%BA"><span class="nav-number">2.4.</span> <span class="nav-text">方法区</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%BF%90%E8%A1%8C%E5%B8%B8%E9%87%8F%E6%B1%A0"><span class="nav-number">2.5.</span> <span class="nav-text">运行常量池</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%9C%AC%E5%9C%B0%E6%96%B9%E6%B3%95%E6%A0%88"><span class="nav-number">2.6.</span> <span class="nav-text">本地方法栈</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%86%85%E5%AD%98%E5%88%86%E9%85%8D%E7%AD%96%E7%95%A5"><span class="nav-number">3.</span> <span class="nav-text">内存分配策略</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="Mark"
+      src="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/avatar_what.png">
+  <p class="site-author-name" itemprop="name">Mark</p>
+  <div class="site-description" itemprop="description">Stay Hungry, Stay Foolish.</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">64</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">18</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">28</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://space.bilibili.com/1268283" title="Bilibili → https:&#x2F;&#x2F;space.bilibili.com&#x2F;1268283" rel="noopener" target="_blank"><i class="fas fa-video fa-fw"></i>Bilibili</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://www.youtube.com/channel/UCgo_k4UEkGUNrG-resCDVKw" title="YouTube → https:&#x2F;&#x2F;www.youtube.com&#x2F;channel&#x2F;UCgo_k4UEkGUNrG-resCDVKw" rel="noopener" target="_blank"><i class="fab fa-youtube fa-fw"></i>YouTube</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 2015 – 
+  <span itemprop="copyrightYear">2024</span>
+  <span class="with-love">
+    <i class="fas fa-gamepad"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Mark</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-chart-area"></i>
+    </span>
+    <span title="站点总字数">67k</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+    <span title="站点阅读时长">4:02</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://mist.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a> 强力驱动
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.css">
+
+<script>
+NexT.utils.loadComments(document.querySelector('#gitalk-container'), () => {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.js', () => {
+    var gitalk = new Gitalk({
+      clientID    : '1d971a932df33dd64e19',
+      clientSecret: 'a51b84396586902b536b1b26a917003af50ea152',
+      repo        : 'hexo-comments',
+      owner       : 'dreamming',
+      admin       : ['dreamming'],
+      id          : '64d0d8442ca1ca1e9ed724134e707660',
+        language: 'zh-CN',
+      distractionFreeMode: false
+    });
+    gitalk.render('gitalk-container');
+  }, window.Gitalk);
+});
+</script>
+
+</body>
+</html>

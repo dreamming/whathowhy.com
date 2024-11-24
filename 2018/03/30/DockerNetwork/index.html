@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.4.2">
+
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-N9NJ5HB');</script>
+<!-- End Google Tag Manager -->
+
+<!-- Google Tag Manager (noscript) -->
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-N9NJ5HB"
+height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+<!-- End Google Tag Manager (noscript) -->
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"whathowhy.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"hide","padding":18,"offset":12,"onmobile":true},"copycode":{"enable":true,"show_result":true,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="简单记录下容器间的网络通信。 网络驱动  network drivers是docker提供容器间网络通信的基础。docker默认提供了两中驱动：bridge和overlay docker network ls指令会列出当前存在的网络  docker在安装完成后会自动创建三个网络   BRIDGE  宿主机中使用ip addr show查看网卡状况     docker0为宿主机中的虚拟网桥">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Docker容器间的通信">
+<meta property="og:url" content="https://whathowhy.com/2018/03/30/DockerNetwork/index.html">
+<meta property="og:site_name" content="8lovelife&#39;s life">
+<meta property="og:description" content="简单记录下容器间的网络通信。 网络驱动  network drivers是docker提供容器间网络通信的基础。docker默认提供了两中驱动：bridge和overlay docker network ls指令会列出当前存在的网络  docker在安装完成后会自动创建三个网络   BRIDGE  宿主机中使用ip addr show查看网卡状况     docker0为宿主机中的虚拟网桥">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/photos/37.png">
+<meta property="og:image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/DockerBridge.png">
+<meta property="og:image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/DockerIp.png">
+<meta property="og:image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/DockerNetWork.png">
+<meta property="article:published_time" content="2018-03-29T17:16:55.000Z">
+<meta property="article:modified_time" content="2024-11-24T15:09:32.162Z">
+<meta property="article:author" content="Mark">
+<meta property="article:tag" content="Docker">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/photos/37.png">
+
+<link rel="canonical" href="https://whathowhy.com/2018/03/30/DockerNetwork/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>Docker容器间的通信 | 8lovelife's life</title>
+  
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-MSKY7FDVPG"></script>
+    <script>
+      if (CONFIG.hostname === location.hostname) {
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-MSKY7FDVPG');
+      }
+    </script>
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">8lovelife's life</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">M&M</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://whathowhy.com/2018/03/30/DockerNetwork/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/avatar_what.png">
+      <meta itemprop="name" content="Mark">
+      <meta itemprop="description" content="Stay Hungry, Stay Foolish.">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="8lovelife's life">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Docker容器间的通信
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2018-03-30 01:16:55" itemprop="dateCreated datePublished" datetime="2018-03-30T01:16:55+08:00">2018-03-30</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2024-11-24 23:09:32" itemprop="dateModified" datetime="2024-11-24T23:09:32+08:00">2024-11-24</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Docker/" itemprop="url" rel="index"><span itemprop="name">Docker</span></a>
+                </span>
+            </span>
+
+          <br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="far fa-file-word"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>753</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="far fa-clock"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              <span>3 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <img src="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/photos/37.png" class="full-image" />
+
+<!-- # Docker Network -->
+
+<p>简单记录下容器间的网络通信。</p>
+<h1 id="网络驱动"><a href="#网络驱动" class="headerlink" title="网络驱动"></a><em><strong>网络驱动</strong></em></h1><blockquote>
+<ol>
+<li><strong>network drivers</strong>是docker提供容器间网络通信的基础。docker默认提供了两中驱动：bridge和overlay</li>
+<li><code>docker network ls</code>指令会列出当前存在的网络 </li>
+<li>docker在安装完成后会自动创建三个网络<br><img src="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/DockerBridge.png" alt="这里写图片描述"></li>
+</ol>
+</blockquote>
+<h1 id="BRIDGE"><a href="#BRIDGE" class="headerlink" title="BRIDGE"></a><em><strong>BRIDGE</strong></em></h1><blockquote>
+<ol>
+<li><p>宿主机中使用<code>ip addr show</code>查看网卡状况<br>   <img src="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/DockerIp.png" alt="这里写图片描述"></p>
+</li>
+<li><p><strong>docker0</strong>为宿主机中的虚拟网桥即为docker自动创建的bridge网络</p>
+</li>
+<li><p><strong>bridge</strong>为docker运行容器（<code>docker run</code>）默认使用的网络</p>
+</li>
+</ol>
+</blockquote>
+<span id="more"></span>
+
+<h2 id="容器与外部的网络通信前提"><a href="#容器与外部的网络通信前提" class="headerlink" title="容器与外部的网络通信前提"></a><strong>容器与外部的网络通信前提</strong></h2><blockquote>
+<ol>
+<li>保证宿主机开启了ip_forward功能</li>
+<li>保证iptables的相关策略的设置，如地址伪装,NAT等</li>
+</ol>
+</blockquote>
+<h2 id="宿主机与容器的端口映射"><a href="#宿主机与容器的端口映射" class="headerlink" title="宿主机与容器的端口映射"></a><strong>宿主机与容器的端口映射</strong></h2><blockquote>
+<ol>
+<li><p><code>docker run -itd -P --name mongoService mongo</code>，-P表示：容器暴露的端口将会映射到宿主机中的随机端口号，随机范围见：&#x2F;proc&#x2F;sys&#x2F;net&#x2F;ipv4&#x2F;ip_local_port_range</p>
+</li>
+<li><p>每当启动容器与外部网络的通信，docker都会建立响应的iptables规则。<code>iptables -L -n -t nat</code>查看规则</p>
+</li>
+</ol>
+</blockquote>
+<h1 id="容器间的网络通信"><a href="#容器间的网络通信" class="headerlink" title="容器间的网络通信"></a><em><strong>容器间的网络通信</strong></em></h1><blockquote>
+<p>容器间可以通过IP或容器名进行网络通信</p>
+</blockquote>
+<h2 id="使用自己创建的NETWORK"><a href="#使用自己创建的NETWORK" class="headerlink" title="使用自己创建的NETWORK"></a><strong>使用自己创建的NETWORK</strong></h2><blockquote>
+<ol>
+<li><p>创建my_bridge网络:  <code>docker network create -d bridge --subnet=10.0.0.0/24 my_bridge</code></p>
+</li>
+<li><p>运行使用my_bridge网络的容器  <code>docker run -itd --network=my_bridge --ip=10.0.0.254 --name db busybox</code></p>
+</li>
+</ol>
+</blockquote>
+<h2 id="不同NETWORK间的容器通信"><a href="#不同NETWORK间的容器通信" class="headerlink" title="不同NETWORK间的容器通信"></a><strong>不同NETWORK间的容器通信</strong></h2><blockquote>
+<ol>
+<li><code>docker run -itd --name=web busybox</code>,使用默认的bridge network</li>
+<li>将当前容器加入到需要与之通信的网络  <code>docker network connect my_bridge web</code></li>
+<li>网络结构</li>
+</ol>
+</blockquote>
+<p><img src="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/DockerNetWork.png" alt="这里写图片描述"></p>
+<h1 id="容器DNS"><a href="#容器DNS" class="headerlink" title="容器DNS"></a><em><strong>容器DNS</strong></em></h1><blockquote>
+<p>容器间如何通过别名进行网络通信？</p>
+</blockquote>
+<h2 id="默认bridge网络"><a href="#默认bridge网络" class="headerlink" title="默认bridge网络"></a><strong>默认bridge网络</strong></h2><blockquote>
+<pre><code>   -- 创建测试容器
+   docker run -itd --name c1 busybox
+   docker run -itd --name c2 busybox
+</code></pre>
+</blockquote>
+<blockquote>
+<pre><code>   -- 进入容器c1内部
+   docker attach c1
+   / # ping c2
+   ping: bad address &#39;c2&#39;
+
+   -- 创建容器时指定link容器
+   docker run -itd  --link c2:c2_alias --name c3 busybox
+
+   -- 进入容器c3内部
+   docker attach c3
+   / # ping -w1 c2
+   PING c2 (172.17.0.4): 56 data bytes
+   64 bytes from 172.17.0.4: seq=0 ttl=64 time=0.083 ms
+   / # ping -w1 c2_alias
+   PING c2_alias (172.17.0.4): 56 data bytes
+   64 bytes from 172.17.0.4: seq=0 ttl=64 time=0.096 ms
+   / # cat /etc/hosts #（容器别名相互耦合）
+   127.0.0.1	localhost
+   ::1	localhost ip6-localhost ip6-loopback
+   fe00::0	ip6-localnet
+   ff00::0	ip6-mcastprefix
+   ff02::1	ip6-allnodes
+   ff02::2	ip6-allrouters
+   172.17.0.4	c2_alias 7e4850ad6320 c2  #通信原因
+   172.17.0.6	fe51353cb1e3
+
+   -- 进入容器c2内部
+   docker attach c2
+   / # ping c3
+   ping: bad address &#39;c3&#39;
+</code></pre>
+</blockquote>
+<h2 id="用户创建的bridge网络"><a href="#用户创建的bridge网络" class="headerlink" title="用户创建的bridge网络"></a><strong>用户创建的bridge网络</strong></h2><blockquote>
+<pre><code>   -- 创建测试容器
+   docker run -itd --name c4 --net=my_bridge busybox
+   docker run -itd --name c5 --net=my_bridge busybox
+
+   -- 进入容器c4内部
+   docker attach c4
+   / # ping -w1 c5  #（自动创建DNS服务）
+   PING c5 (10.0.0.3): 56 data bytes
+   64 bytes from 10.0.0.3: seq=0 ttl=64 time=0.066 ms
+</code></pre>
+</blockquote>
+<h2 id="网络层可见别名"><a href="#网络层可见别名" class="headerlink" title="网络层可见别名"></a><strong>网络层可见别名</strong></h2><blockquote>
+<pre><code>  -- 创建测试容器
+  docker run -itd --name c7 --net=my_bridge --network-alias c7_net_alias busybox
+  -- 进入容器c4内部
+  docker attach c4
+  / # ping -w1 c7_net_alias
+  PING c7_net_alias (10.0.0.5): 56 data bytes
+  64 bytes from 10.0.0.5: seq=0 ttl=64 time=0.205 ms
+</code></pre>
+</blockquote>
+<h1 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h1><p><a target="_blank" rel="noopener" href="https://docs.docker.com/engine/userguide/networking/">Docker v17.09</a></p>
+<blockquote class="blockquote-center">
+            <i class="fa fa-quote-left"></i>
+            <p> Mars will come to fear my botany skills. - Mark Watney</p>
+<p><a target="_blank" rel="noopener" href="https://movie.douban.com/subject/25864085/">The Martian</a></p>
+
+            <i class="fa fa-quote-right"></i>
+          </blockquote>
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/Docker/" rel="tag"># Docker</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2018/03/30/DockerfileImage/" rel="prev" title="使用Dockerfile构建Docker镜像">
+      <i class="fa fa-chevron-left"></i> 使用Dockerfile构建Docker镜像
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2018/03/30/DockerData/" rel="next" title="Docker容器中的数据管理">
+      Docker容器中的数据管理 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="gitalk-container"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E7%BD%91%E7%BB%9C%E9%A9%B1%E5%8A%A8"><span class="nav-number">1.</span> <span class="nav-text">网络驱动</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#BRIDGE"><span class="nav-number">2.</span> <span class="nav-text">BRIDGE</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%AE%B9%E5%99%A8%E4%B8%8E%E5%A4%96%E9%83%A8%E7%9A%84%E7%BD%91%E7%BB%9C%E9%80%9A%E4%BF%A1%E5%89%8D%E6%8F%90"><span class="nav-number">2.1.</span> <span class="nav-text">容器与外部的网络通信前提</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%AE%BF%E4%B8%BB%E6%9C%BA%E4%B8%8E%E5%AE%B9%E5%99%A8%E7%9A%84%E7%AB%AF%E5%8F%A3%E6%98%A0%E5%B0%84"><span class="nav-number">2.2.</span> <span class="nav-text">宿主机与容器的端口映射</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%AE%B9%E5%99%A8%E9%97%B4%E7%9A%84%E7%BD%91%E7%BB%9C%E9%80%9A%E4%BF%A1"><span class="nav-number">3.</span> <span class="nav-text">容器间的网络通信</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%BD%BF%E7%94%A8%E8%87%AA%E5%B7%B1%E5%88%9B%E5%BB%BA%E7%9A%84NETWORK"><span class="nav-number">3.1.</span> <span class="nav-text">使用自己创建的NETWORK</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%B8%8D%E5%90%8CNETWORK%E9%97%B4%E7%9A%84%E5%AE%B9%E5%99%A8%E9%80%9A%E4%BF%A1"><span class="nav-number">3.2.</span> <span class="nav-text">不同NETWORK间的容器通信</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%AE%B9%E5%99%A8DNS"><span class="nav-number">4.</span> <span class="nav-text">容器DNS</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E9%BB%98%E8%AE%A4bridge%E7%BD%91%E7%BB%9C"><span class="nav-number">4.1.</span> <span class="nav-text">默认bridge网络</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%94%A8%E6%88%B7%E5%88%9B%E5%BB%BA%E7%9A%84bridge%E7%BD%91%E7%BB%9C"><span class="nav-number">4.2.</span> <span class="nav-text">用户创建的bridge网络</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%BD%91%E7%BB%9C%E5%B1%82%E5%8F%AF%E8%A7%81%E5%88%AB%E5%90%8D"><span class="nav-number">4.3.</span> <span class="nav-text">网络层可见别名</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%8F%82%E8%80%83"><span class="nav-number">5.</span> <span class="nav-text">参考</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="Mark"
+      src="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/avatar_what.png">
+  <p class="site-author-name" itemprop="name">Mark</p>
+  <div class="site-description" itemprop="description">Stay Hungry, Stay Foolish.</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">64</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">18</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">28</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://space.bilibili.com/1268283" title="Bilibili → https:&#x2F;&#x2F;space.bilibili.com&#x2F;1268283" rel="noopener" target="_blank"><i class="fas fa-video fa-fw"></i>Bilibili</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://www.youtube.com/channel/UCgo_k4UEkGUNrG-resCDVKw" title="YouTube → https:&#x2F;&#x2F;www.youtube.com&#x2F;channel&#x2F;UCgo_k4UEkGUNrG-resCDVKw" rel="noopener" target="_blank"><i class="fab fa-youtube fa-fw"></i>YouTube</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 2015 – 
+  <span itemprop="copyrightYear">2024</span>
+  <span class="with-love">
+    <i class="fas fa-gamepad"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Mark</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-chart-area"></i>
+    </span>
+    <span title="站点总字数">67k</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+    <span title="站点阅读时长">4:02</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://mist.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a> 强力驱动
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.css">
+
+<script>
+NexT.utils.loadComments(document.querySelector('#gitalk-container'), () => {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.js', () => {
+    var gitalk = new Gitalk({
+      clientID    : '1d971a932df33dd64e19',
+      clientSecret: 'a51b84396586902b536b1b26a917003af50ea152',
+      repo        : 'hexo-comments',
+      owner       : 'dreamming',
+      admin       : ['dreamming'],
+      id          : '57f114ed7512848fd941deda58f23104',
+        language: 'zh-CN',
+      distractionFreeMode: false
+    });
+    gitalk.render('gitalk-container');
+  }, window.Gitalk);
+});
+</script>
+
+</body>
+</html>

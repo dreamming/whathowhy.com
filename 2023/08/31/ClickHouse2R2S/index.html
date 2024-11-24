@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.4.2">
+
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-N9NJ5HB');</script>
+<!-- End Google Tag Manager -->
+
+<!-- Google Tag Manager (noscript) -->
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-N9NJ5HB"
+height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+<!-- End Google Tag Manager (noscript) -->
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"whathowhy.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"hide","padding":18,"offset":12,"onmobile":true},"copycode":{"enable":true,"show_result":true,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="一般情况下 ClickHouse 1S-2R 的集群模式足够使用，当服务无法 scale up，服务器已经无法继续升级配置，这个时候我们可以选择数据分片来进行服务的 scale out，通过对服务的横向扩展来提升服务能力。本文记录 2S-2R （两个分片两个副本）的集群搭建，以及常用操作">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Deploying ClickHouse - 2S-2R">
+<meta property="og:url" content="https://whathowhy.com/2023/08/31/ClickHouse2R2S/index.html">
+<meta property="og:site_name" content="8lovelife&#39;s life">
+<meta property="og:description" content="一般情况下 ClickHouse 1S-2R 的集群模式足够使用，当服务无法 scale up，服务器已经无法继续升级配置，这个时候我们可以选择数据分片来进行服务的 scale out，通过对服务的横向扩展来提升服务能力。本文记录 2S-2R （两个分片两个副本）的集群搭建，以及常用操作">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/photos/59.png">
+<meta property="og:image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/clickhouse/clickhouse_2S_2R.png">
+<meta property="og:image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/clickhouse/2S_2R_UUID.png">
+<meta property="og:image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/clickhouse/clickhouse_2S_3R_New.png">
+<meta property="og:image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/clickhouse/tables_info_uuid.png">
+<meta property="og:image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/clickhouse/replicas_old.png">
+<meta property="og:image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/clickhouse/replicas_new.png">
+<meta property="og:image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/clickhouse/2S_3R_UUID.png">
+<meta property="og:image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/clickhouse/2S_3R_New_Data.png">
+<meta property="article:published_time" content="2023-08-31T14:10:00.000Z">
+<meta property="article:modified_time" content="2024-11-24T15:09:32.162Z">
+<meta property="article:author" content="Mark">
+<meta property="article:tag" content="ClickHouse">
+<meta property="article:tag" content="Docker">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/photos/59.png">
+
+<link rel="canonical" href="https://whathowhy.com/2023/08/31/ClickHouse2R2S/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>Deploying ClickHouse - 2S-2R | 8lovelife's life</title>
+  
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-MSKY7FDVPG"></script>
+    <script>
+      if (CONFIG.hostname === location.hostname) {
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-MSKY7FDVPG');
+      }
+    </script>
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">8lovelife's life</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">M&M</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://whathowhy.com/2023/08/31/ClickHouse2R2S/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/avatar_what.png">
+      <meta itemprop="name" content="Mark">
+      <meta itemprop="description" content="Stay Hungry, Stay Foolish.">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="8lovelife's life">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Deploying ClickHouse - 2S-2R
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2023-08-31 22:10:00" itemprop="dateCreated datePublished" datetime="2023-08-31T22:10:00+08:00">2023-08-31</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2024-11-24 23:09:32" itemprop="dateModified" datetime="2024-11-24T23:09:32+08:00">2024-11-24</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/ClickHouse/" itemprop="url" rel="index"><span itemprop="name">ClickHouse</span></a>
+                </span>
+            </span>
+
+          <br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="far fa-file-word"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>1.2k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="far fa-clock"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              <span>5 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <img src="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/photos/59.png" class="full-image">
+
+<p>一般情况下 <a href="https://whathowhy.com/2023/08/31/ClickHouse1S2R/">ClickHouse 1S-2R</a> 的集群模式足够使用，当服务无法 scale up，服务器已经无法继续升级配置，这个时候我们可以选择数据分片来进行服务的 scale out，通过对服务的横向扩展来提升服务能力。本文记录 2S-2R （两个分片两个副本）的集群搭建，以及常用操作</p>
+<span id="more"></span>
+
+<h1 id="ClickHouse-2S-2R"><a href="#ClickHouse-2S-2R" class="headerlink" title="ClickHouse 2S-2R"></a>ClickHouse 2S-2R</h1><p>如下架构图描述</p>
+<p><img src="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/clickhouse/clickhouse_2S_2R.png" alt="imag"></p>
+<h2 id="Data-Sample"><a href="#Data-Sample" class="headerlink" title="Data Sample"></a>Data Sample</h2><p>数据的简单测试</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">db</span></span><br><span class="line">CREATE DATABASE dp ON CLUSTER cluster_2S_2R;</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">base table</span></span><br><span class="line">CREATE TABLE World on CLUSTER cluster_2S_2R (</span><br><span class="line">  val String</span><br><span class="line">)</span><br><span class="line">ENGINE = ReplicatedMergeTree()</span><br><span class="line">ORDER BY val</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">distributed table ｜ rand() 随机分片</span></span><br><span class="line">CREATE TABLE World_distributed ON Cluster cluster_2S_2R</span><br><span class="line">ENGINE = Distributed(cluster_2S_2R,dp,World,rand());</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">data insert</span></span><br><span class="line">INSERT INTO World_distributed(val) SELECT number FROM numbers(10);</span><br></pre></td></tr></table></figure>
+
+<p><img src="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/clickhouse/2S_2R_UUID.png" alt="imag"></p>
+<h1 id="Add-New-Replicas"><a href="#Add-New-Replicas" class="headerlink" title="Add New Replicas"></a>Add New Replicas</h1><p>在当前 CK 集群中新增 SHARD 副本。新架构图描述如下</p>
+<p><img src="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/clickhouse/clickhouse_2S_3R_New.png" alt="imag"></p>
+<h2 id="Show-Table-Full-Engine"><a href="#Show-Table-Full-Engine" class="headerlink" title="Show Table Full Engine"></a>Show Table Full Engine</h2><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">SELECT * FROM system.tables</span><br><span class="line">WHERE database = &#x27;dp&#x27; AND name = &#x27;World&#x27; FORMAT Vertical;</span><br></pre></td></tr></table></figure>
+<p><img src="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/clickhouse/tables_info_uuid.png" alt="imag"></p>
+<h2 id="Show-Replicas-Info"><a href="#Show-Replicas-Info" class="headerlink" title="Show Replicas Info"></a>Show Replicas Info</h2><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">SELECT * FROM system.zookeeper</span><br><span class="line">WHERE path = &#x27;/clickhouse/tables/e60cfcf5-27eb-4672-b773-89d06a127422/shard-one/replicas&#x27;;</span><br></pre></td></tr></table></figure>
+<p><img src="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/clickhouse/replicas_old.png" alt="imag"></p>
+<h2 id="Sync-Database-Table"><a href="#Sync-Database-Table" class="headerlink" title="Sync Database &#x2F; Table"></a>Sync Database &#x2F; Table</h2><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">on new clickhouse node | clickhouse-05 or clickhouse-06</span></span><br><span class="line">CREATE DATABASE dp ON CLUSTER cluster_2S_2R;</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">table base on FULL ENGINE info</span></span><br><span class="line">CREATE TABLE World on CLUSTER cluster_2S_2R (</span><br><span class="line">  val String</span><br><span class="line">)</span><br><span class="line">ENGINE = ReplicatedMergeTree(&#x27;/clickhouse/tables/e60cfcf5-27eb-4672-b773-89d06a127422/&#123;shard&#125;&#x27;, &#x27;&#123;replica&#125;&#x27;)</span><br><span class="line">ORDER BY val;</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">distributed table</span></span><br><span class="line">CREATE TABLE World_distributed ON Cluster cluster_2S_2R</span><br><span class="line">ENGINE = Distributed(cluster_2S_2R,dp,World,rand());</span><br></pre></td></tr></table></figure>
+
+<h2 id="Show-New-Replicas-Info"><a href="#Show-New-Replicas-Info" class="headerlink" title="Show New Replicas Info"></a>Show New Replicas Info</h2><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">SELECT * FROM system.zookeeper</span><br><span class="line">WHERE path = &#x27;/clickhouse/tables/e60cfcf5-27eb-4672-b773-89d06a127422/shard-one/replicas&#x27;;</span><br></pre></td></tr></table></figure>
+<p><img src="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/clickhouse/replicas_new.png" alt="imag"></p>
+<h2 id="Sync-Replicas-Data"><a href="#Sync-Replicas-Data" class="headerlink" title="Sync Replicas Data"></a>Sync Replicas Data</h2><p><img src="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/clickhouse/2S_3R_UUID.png" alt="imag"></p>
+<h2 id="Test-New-Replicas"><a href="#Test-New-Replicas" class="headerlink" title="Test New Replicas"></a>Test New Replicas</h2><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">INSERT INTO World_distributed(val) SELECT number FROM numbers(10);</span><br></pre></td></tr></table></figure>
+<p><img src="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/clickhouse/2S_3R_New_Data.png" alt="imag"></p>
+<h1 id="搭建过程常见问题"><a href="#搭建过程常见问题" class="headerlink" title="搭建过程常见问题"></a>搭建过程常见问题</h1><h2 id="New-Replicas-无法同步数据"><a href="#New-Replicas-无法同步数据" class="headerlink" title="New Replicas 无法同步数据"></a>New Replicas 无法同步数据</h2><p>检查 NEW NODES 中 TABLE 的 FULL ENGINE 是否相同</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">SELECT * FROM system.tables</span><br><span class="line">WHERE database = &#x27;dp&#x27; AND name = &#x27;World&#x27; FORMAT Vertical;</span><br></pre></td></tr></table></figure>
+
+<h2 id="Distributed-Table-的权限问题"><a href="#Distributed-Table-的权限问题" class="headerlink" title="Distributed Table 的权限问题"></a>Distributed Table 的权限问题</h2><p>DISTRIBUTED TABLE 使用的是 ‘default’ 用户进行不同 Clickhouse Node 之间的通信</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">Received exception from server (version 23.6.2):</span><br><span class="line">Code: 516. DB::Exception: Received from localhost:9000. DB::Exception: Received from clickhouse-01:9000. DB::Exception: default: Authentication failed: password is incorrect, or there is no user with such name.</span><br><span class="line"></span><br><span class="line">If you have installed ClickHouse and forgot password you can reset it in the configuration file.</span><br><span class="line">The password for default user is typically located at /etc/clickhouse-server/users.d/default-password.xml</span><br><span class="line">and deleting this file will reset the password.</span><br><span class="line">See also /etc/clickhouse-server/users.xml on the server where ClickHouse is installed.</span><br></pre></td></tr></table></figure>
+
+<h3 id="解决方案-1"><a href="#解决方案-1" class="headerlink" title="解决方案 1"></a>解决方案 1</h3><p>保留 default 用户密码，修改 config.xml 文件中的 replica，新增 user&#x2F;password</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">&lt;remote_servers&gt;</span><br><span class="line">    &lt;cluster_2S_2R&gt;</span><br><span class="line">        &lt;shard&gt;</span><br><span class="line">            &lt;internal_replication&gt;true&lt;/internal_replication&gt;</span><br><span class="line">            &lt;replica&gt;</span><br><span class="line">                &lt;host&gt;clickhouse-01&lt;/host&gt;</span><br><span class="line">                &lt;port&gt;9000&lt;/port&gt;</span><br><span class="line">                &lt;user&gt;default&lt;/user&gt;</span><br><span class="line">                &lt;password&gt;123456&lt;/password&gt;                    </span><br><span class="line">            &lt;/replica&gt;</span><br><span class="line">        &lt;/shard&gt;</span><br><span class="line">        ........         </span><br><span class="line">    &lt;/cluster_2S_2R&gt;</span><br><span class="line">&lt;/remote_servers&gt;</span><br></pre></td></tr></table></figure>
+
+<h3 id="解决方案-2"><a href="#解决方案-2" class="headerlink" title="解决方案 2"></a>解决方案 2</h3><p>设置 default 无密码登录，修改 user.xml 文件中的 networks，指定可访问 IP</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">&lt;users&gt;</span><br><span class="line">    &lt;default&gt;</span><br><span class="line">        &lt;profile&gt;default&lt;/profile&gt;</span><br><span class="line">        &lt;networks&gt;</span><br><span class="line">            &lt;ip&gt;::1&lt;/ip&gt;</span><br><span class="line">            &lt;ip&gt;127.0.0.1&lt;/ip&gt;</span><br><span class="line">            &lt;ip&gt;192.168.5.1&lt;/ip&gt;</span><br><span class="line">            &lt;ip&gt;192.168.5.2&lt;/ip&gt;</span><br><span class="line">            &lt;ip&gt;192.168.5.3&lt;/ip&gt;</span><br><span class="line">            &lt;ip&gt;192.168.5.4&lt;/ip&gt;</span><br><span class="line">            &lt;ip&gt;192.168.5.5&lt;/ip&gt;</span><br><span class="line">            &lt;ip&gt;192.168.5.6&lt;/ip&gt;</span><br></pre></td></tr></table></figure>
+
+<h1 id="Up-ClickHouse-Server"><a href="#Up-ClickHouse-Server" class="headerlink" title="Up ClickHouse Server"></a>Up ClickHouse Server</h1><p>通过 docker compose 创建 ClickHouse Server 2S-2R 集群</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br><span class="line">162</span><br><span class="line">163</span><br><span class="line">164</span><br><span class="line">165</span><br><span class="line">166</span><br><span class="line">167</span><br><span class="line">168</span><br><span class="line">169</span><br><span class="line">170</span><br><span class="line">171</span><br><span class="line">172</span><br><span class="line">173</span><br><span class="line">174</span><br><span class="line">175</span><br><span class="line">176</span><br><span class="line">177</span><br><span class="line">178</span><br><span class="line">179</span><br><span class="line">180</span><br><span class="line">181</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">docker-compose.yml contents</span></span><br><span class="line">version: &#x27;3.8&#x27;</span><br><span class="line">services:</span><br><span class="line">  clickhouse-01:</span><br><span class="line">    image: &quot;clickhouse/clickhouse-server:$&#123;CHVER:-latest&#125;&quot;</span><br><span class="line">    user: &quot;101:101&quot;</span><br><span class="line">    container_name: clickhouse-01</span><br><span class="line">    hostname: clickhouse-01   </span><br><span class="line">    networks:</span><br><span class="line">      cluster_2S_2R_ch_proxy:</span><br><span class="line">        ipv4_address: 192.168.5.1</span><br><span class="line">    volumes:</span><br><span class="line">      - ./ck-01/config.d/config.xml:/etc/clickhouse-server/config.d/config.xml</span><br><span class="line">      - ./ck-01/users.d/users.xml:/etc/clickhouse-server/users.d/users.xml</span><br><span class="line">      - ./ck-01/data:/var/lib/clickhouse:rw</span><br><span class="line">      - ./ck-01/logs:/var/log/clickhouse-server</span><br><span class="line">    ports:</span><br><span class="line">      - &quot;127.0.0.1:18123:8123&quot;</span><br><span class="line">      - &quot;127.0.0.1:19000:9000&quot;</span><br><span class="line">    depends_on:</span><br><span class="line">      - clickhouse-keeper-01</span><br><span class="line">      - clickhouse-keeper-02</span><br><span class="line">      - clickhouse-keeper-03</span><br><span class="line"></span><br><span class="line">  clickhouse-02:</span><br><span class="line">    image: &quot;clickhouse/clickhouse-server:$&#123;CHVER:-latest&#125;&quot;</span><br><span class="line">    user: &quot;101:101&quot;</span><br><span class="line">    container_name: clickhouse-02</span><br><span class="line">    hostname: clickhouse-02   </span><br><span class="line">    networks:</span><br><span class="line">      cluster_2S_2R_ch_proxy:</span><br><span class="line">        ipv4_address: 192.168.5.2</span><br><span class="line">    volumes:</span><br><span class="line">      - ./ck-02/config.d/config.xml:/etc/clickhouse-server/config.d/config.xml</span><br><span class="line">      - ./ck-02/users.d/users.xml:/etc/clickhouse-server/users.d/users.xml</span><br><span class="line">      - ./ck-02/data:/var/lib/clickhouse:rw</span><br><span class="line">      - ./ck-02/logs:/var/log/clickhouse-server</span><br><span class="line">    ports:</span><br><span class="line">      - &quot;127.0.0.1:18124:8123&quot;</span><br><span class="line">      - &quot;127.0.0.1:19001:9000&quot;</span><br><span class="line">    depends_on:</span><br><span class="line">      - clickhouse-keeper-01</span><br><span class="line">      - clickhouse-keeper-02</span><br><span class="line">      - clickhouse-keeper-03</span><br><span class="line"></span><br><span class="line">  clickhouse-03:</span><br><span class="line">    image: &quot;clickhouse/clickhouse-server:$&#123;CHVER:-latest&#125;&quot;</span><br><span class="line">    user: &quot;101:101&quot;</span><br><span class="line">    container_name: clickhouse-03</span><br><span class="line">    hostname: clickhouse-03   </span><br><span class="line">    networks:</span><br><span class="line">      cluster_2S_2R_ch_proxy:</span><br><span class="line">        ipv4_address: 192.168.5.3</span><br><span class="line">    volumes:</span><br><span class="line">      - ./ck-03/config.d/config.xml:/etc/clickhouse-server/config.d/config.xml</span><br><span class="line">      - ./ck-03/users.d/users.xml:/etc/clickhouse-server/users.d/users.xml</span><br><span class="line">      - ./ck-03/data:/var/lib/clickhouse:rw</span><br><span class="line">      - ./ck-03/logs:/var/log/clickhouse-server</span><br><span class="line">    ports:</span><br><span class="line">      - &quot;127.0.0.1:18125:8123&quot;</span><br><span class="line">      - &quot;127.0.0.1:19002:9000&quot;</span><br><span class="line">    depends_on:</span><br><span class="line">      - clickhouse-keeper-01</span><br><span class="line">      - clickhouse-keeper-02</span><br><span class="line">      - clickhouse-keeper-03</span><br><span class="line">    </span><br><span class="line">  clickhouse-04:</span><br><span class="line">    image: &quot;clickhouse/clickhouse-server:$&#123;CHVER:-latest&#125;&quot;</span><br><span class="line">    user: &quot;101:101&quot;</span><br><span class="line">    container_name: clickhouse-04</span><br><span class="line">    hostname: clickhouse-04  </span><br><span class="line">    networks:</span><br><span class="line">      cluster_2S_2R_ch_proxy:</span><br><span class="line">        ipv4_address: 192.168.5.4</span><br><span class="line">    volumes:</span><br><span class="line">      - ./ck-04/config.d/config.xml:/etc/clickhouse-server/config.d/config.xml</span><br><span class="line">      - ./ck-04/users.d/users.xml:/etc/clickhouse-server/users.d/users.xml</span><br><span class="line">      - ./ck-04/data:/var/lib/clickhouse:rw</span><br><span class="line">      - ./ck-04/logs:/var/log/clickhouse-server</span><br><span class="line">    ports:</span><br><span class="line">      - &quot;127.0.0.1:18126:8123&quot;</span><br><span class="line">      - &quot;127.0.0.1:19003:9000&quot;</span><br><span class="line">    depends_on:</span><br><span class="line">      - clickhouse-keeper-01</span><br><span class="line">      - clickhouse-keeper-02</span><br><span class="line">      - clickhouse-keeper-03</span><br><span class="line"></span><br><span class="line">  clickhouse-05:</span><br><span class="line">    image: &quot;clickhouse/clickhouse-server:$&#123;CHVER:-latest&#125;&quot;</span><br><span class="line">    user: &quot;101:101&quot;</span><br><span class="line">    container_name: clickhouse-05</span><br><span class="line">    hostname: clickhouse-05</span><br><span class="line">    networks:</span><br><span class="line">      cluster_2S_2R_ch_proxy:</span><br><span class="line">        ipv4_address: 192.168.5.5</span><br><span class="line">    volumes:</span><br><span class="line">      - ./ck-05/config.d/config.xml:/etc/clickhouse-server/config.d/config.xml</span><br><span class="line">      - ./ck-05/users.d/users.xml:/etc/clickhouse-server/users.d/users.xml</span><br><span class="line">      - ./ck-05/data:/var/lib/clickhouse:rw</span><br><span class="line">      - ./ck-05/logs:/var/log/clickhouse-server</span><br><span class="line">    ports:</span><br><span class="line">      - &quot;127.0.0.1:18127:8123&quot;</span><br><span class="line">      - &quot;127.0.0.1:19004:9000&quot;</span><br><span class="line">    depends_on:</span><br><span class="line">      - clickhouse-keeper-01</span><br><span class="line">      - clickhouse-keeper-02</span><br><span class="line">      - clickhouse-keeper-03</span><br><span class="line"></span><br><span class="line">  clickhouse-06:</span><br><span class="line">    image: &quot;clickhouse/clickhouse-server:$&#123;CHVER:-latest&#125;&quot;</span><br><span class="line">    user: &quot;101:101&quot;</span><br><span class="line">    container_name: clickhouse-06</span><br><span class="line">    hostname: clickhouse-06</span><br><span class="line">    networks:</span><br><span class="line">      cluster_2S_2R_ch_proxy:</span><br><span class="line">        ipv4_address: 192.168.5.6</span><br><span class="line">    volumes:</span><br><span class="line">      - ./ck-06/config.d/config.xml:/etc/clickhouse-server/config.d/config.xml</span><br><span class="line">      - ./ck-06/users.d/users.xml:/etc/clickhouse-server/users.d/users.xml</span><br><span class="line">      - ./ck-06/data:/var/lib/clickhouse:rw</span><br><span class="line">      - ./ck-06/logs:/var/log/clickhouse-server</span><br><span class="line">    ports:</span><br><span class="line">      - &quot;127.0.0.1:18128:8123&quot;</span><br><span class="line">      - &quot;127.0.0.1:19005:9000&quot;</span><br><span class="line">    depends_on:</span><br><span class="line">      - clickhouse-keeper-01</span><br><span class="line">      - clickhouse-keeper-02</span><br><span class="line">      - clickhouse-keeper-03        </span><br><span class="line"></span><br><span class="line">  clickhouse-keeper-01:</span><br><span class="line">    image: &quot;clickhouse/clickhouse-keeper:$&#123;CHKVER:-latest-alpine&#125;&quot;</span><br><span class="line">    user: &quot;101:101&quot;</span><br><span class="line">    container_name: clickhouse-keeper-01</span><br><span class="line">    hostname: clickhouse-keeper-01</span><br><span class="line">    networks:</span><br><span class="line">      cluster_2S_2R_ch_proxy:</span><br><span class="line">        ipv4_address: 192.168.5.10   </span><br><span class="line">    volumes:</span><br><span class="line">     - ./ck-kp-01/config/keeper_config.xml:/etc/clickhouse-keeper/keeper_config.xml</span><br><span class="line">     - ./ck-kp-01/config/coordination:/var/lib/clickhouse/coordination</span><br><span class="line">     - ./ck-kp-01/config/log:/var/log/clickhouse-keeper</span><br><span class="line">    ports:</span><br><span class="line">        - &quot;127.0.0.1:19181:9181&quot;</span><br><span class="line"></span><br><span class="line">  clickhouse-keeper-02:</span><br><span class="line">    image: &quot;clickhouse/clickhouse-keeper:$&#123;CHKVER:-latest-alpine&#125;&quot;</span><br><span class="line">    user: &quot;101:101&quot;</span><br><span class="line">    container_name: clickhouse-keeper-02</span><br><span class="line">    hostname: clickhouse-keeper-02</span><br><span class="line">    networks:</span><br><span class="line">      cluster_2S_2R_ch_proxy:</span><br><span class="line">        ipv4_address: 192.168.5.11  </span><br><span class="line">    volumes:</span><br><span class="line">     - ./ck-kp-02/config/keeper_config.xml:/etc/clickhouse-keeper/keeper_config.xml</span><br><span class="line">     - ./ck-kp-02/config/coordination:/var/lib/clickhouse/coordination</span><br><span class="line">     - ./ck-kp-02/config/log:/var/log/clickhouse-keeper</span><br><span class="line">    ports:</span><br><span class="line">        - &quot;127.0.0.1:19182:9181&quot;</span><br><span class="line">        </span><br><span class="line">  clickhouse-keeper-03:</span><br><span class="line">    image: &quot;clickhouse/clickhouse-keeper:$&#123;CHKVER:-latest-alpine&#125;&quot;</span><br><span class="line">    user: &quot;101:101&quot;</span><br><span class="line">    container_name: clickhouse-keeper-03</span><br><span class="line">    hostname: clickhouse-keeper-03</span><br><span class="line">    networks:</span><br><span class="line">      cluster_2S_2R_ch_proxy:</span><br><span class="line">        ipv4_address: 192.168.5.12</span><br><span class="line">    volumes:</span><br><span class="line">     - ./ck-kp-03/config/keeper_config.xml:/etc/clickhouse-keeper/keeper_config.xml</span><br><span class="line">     - ./ck-kp-03/config/coordination:/var/lib/clickhouse/coordination</span><br><span class="line">     - ./ck-kp-03/config/log:/var/log/clickhouse-keeper</span><br><span class="line">    ports:</span><br><span class="line">        - &quot;127.0.0.1:19183:9181&quot;</span><br><span class="line"></span><br><span class="line">networks:</span><br><span class="line">  cluster_2S_2R_ch_proxy:</span><br><span class="line">    driver: bridge</span><br><span class="line">    ipam:</span><br><span class="line">      config:</span><br><span class="line">        - subnet: 192.168.5.0/24</span><br><span class="line">          gateway: 192.168.5.254</span><br></pre></td></tr></table></figure>
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/ClickHouse/" rel="tag"># ClickHouse</a>
+              <a href="/tags/Docker/" rel="tag"># Docker</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2023/08/31/ClickHouse1S2R/" rel="prev" title="Deploying ClickHouse - 1S-2R">
+      <i class="fa fa-chevron-left"></i> Deploying ClickHouse - 1S-2R
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2023/09/09/K8s_Install_Offline/" rel="next" title="Kubernetes Cluster With Docker">
+      Kubernetes Cluster With Docker <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="gitalk-container"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#ClickHouse-2S-2R"><span class="nav-number">1.</span> <span class="nav-text">ClickHouse 2S-2R</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#Data-Sample"><span class="nav-number">1.1.</span> <span class="nav-text">Data Sample</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Add-New-Replicas"><span class="nav-number">2.</span> <span class="nav-text">Add New Replicas</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#Show-Table-Full-Engine"><span class="nav-number">2.1.</span> <span class="nav-text">Show Table Full Engine</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Show-Replicas-Info"><span class="nav-number">2.2.</span> <span class="nav-text">Show Replicas Info</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Sync-Database-Table"><span class="nav-number">2.3.</span> <span class="nav-text">Sync Database &#x2F; Table</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Show-New-Replicas-Info"><span class="nav-number">2.4.</span> <span class="nav-text">Show New Replicas Info</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Sync-Replicas-Data"><span class="nav-number">2.5.</span> <span class="nav-text">Sync Replicas Data</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Test-New-Replicas"><span class="nav-number">2.6.</span> <span class="nav-text">Test New Replicas</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%90%AD%E5%BB%BA%E8%BF%87%E7%A8%8B%E5%B8%B8%E8%A7%81%E9%97%AE%E9%A2%98"><span class="nav-number">3.</span> <span class="nav-text">搭建过程常见问题</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#New-Replicas-%E6%97%A0%E6%B3%95%E5%90%8C%E6%AD%A5%E6%95%B0%E6%8D%AE"><span class="nav-number">3.1.</span> <span class="nav-text">New Replicas 无法同步数据</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Distributed-Table-%E7%9A%84%E6%9D%83%E9%99%90%E9%97%AE%E9%A2%98"><span class="nav-number">3.2.</span> <span class="nav-text">Distributed Table 的权限问题</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%A7%A3%E5%86%B3%E6%96%B9%E6%A1%88-1"><span class="nav-number">3.2.1.</span> <span class="nav-text">解决方案 1</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%A7%A3%E5%86%B3%E6%96%B9%E6%A1%88-2"><span class="nav-number">3.2.2.</span> <span class="nav-text">解决方案 2</span></a></li></ol></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Up-ClickHouse-Server"><span class="nav-number">4.</span> <span class="nav-text">Up ClickHouse Server</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="Mark"
+      src="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/avatar_what.png">
+  <p class="site-author-name" itemprop="name">Mark</p>
+  <div class="site-description" itemprop="description">Stay Hungry, Stay Foolish.</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">64</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">18</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">28</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://space.bilibili.com/1268283" title="Bilibili → https:&#x2F;&#x2F;space.bilibili.com&#x2F;1268283" rel="noopener" target="_blank"><i class="fas fa-video fa-fw"></i>Bilibili</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://www.youtube.com/channel/UCgo_k4UEkGUNrG-resCDVKw" title="YouTube → https:&#x2F;&#x2F;www.youtube.com&#x2F;channel&#x2F;UCgo_k4UEkGUNrG-resCDVKw" rel="noopener" target="_blank"><i class="fab fa-youtube fa-fw"></i>YouTube</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 2015 – 
+  <span itemprop="copyrightYear">2024</span>
+  <span class="with-love">
+    <i class="fas fa-gamepad"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Mark</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-chart-area"></i>
+    </span>
+    <span title="站点总字数">67k</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+    <span title="站点阅读时长">4:02</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://mist.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a> 强力驱动
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.css">
+
+<script>
+NexT.utils.loadComments(document.querySelector('#gitalk-container'), () => {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.js', () => {
+    var gitalk = new Gitalk({
+      clientID    : '1d971a932df33dd64e19',
+      clientSecret: 'a51b84396586902b536b1b26a917003af50ea152',
+      repo        : 'hexo-comments',
+      owner       : 'dreamming',
+      admin       : ['dreamming'],
+      id          : '48098bcee87da8a735aecb6f1ae0f6b7',
+        language: 'zh-CN',
+      distractionFreeMode: false
+    });
+    gitalk.render('gitalk-container');
+  }, window.Gitalk);
+});
+</script>
+
+</body>
+</html>

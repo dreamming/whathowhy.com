@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.4.2">
+
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-N9NJ5HB');</script>
+<!-- End Google Tag Manager -->
+
+<!-- Google Tag Manager (noscript) -->
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-N9NJ5HB"
+height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+<!-- End Google Tag Manager (noscript) -->
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"whathowhy.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"hide","padding":18,"offset":12,"onmobile":true},"copycode":{"enable":true,"show_result":true,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="Kubernetes 是一款开源的容器编排系统，用于自动部署、扩容和管理容器应用，因为 Kubernetes 的首字母和尾字母之间有8个字母，所以也被简称为 K8s。K8s 在 v1.24 版本之前默认集成了 Docker Engine 作为 K8s 的容器运行时，而在 v1.24 及之后的版本中使用 containerd 作为 K8s 的容器运行时，本篇文章记录如何在 v1.24之后的 K8">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Kubernetes Cluster With Docker">
+<meta property="og:url" content="https://whathowhy.com/2023/09/09/K8s_Install_Offline/index.html">
+<meta property="og:site_name" content="8lovelife&#39;s life">
+<meta property="og:description" content="Kubernetes 是一款开源的容器编排系统，用于自动部署、扩容和管理容器应用，因为 Kubernetes 的首字母和尾字母之间有8个字母，所以也被简称为 K8s。K8s 在 v1.24 版本之前默认集成了 Docker Engine 作为 K8s 的容器运行时，而在 v1.24 及之后的版本中使用 containerd 作为 K8s 的容器运行时，本篇文章记录如何在 v1.24之后的 K8">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/photos/60.png">
+<meta property="article:published_time" content="2023-09-09T14:10:00.000Z">
+<meta property="article:modified_time" content="2024-11-24T15:09:32.166Z">
+<meta property="article:author" content="Mark">
+<meta property="article:tag" content="Docker">
+<meta property="article:tag" content="Kubernetes">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/photos/60.png">
+
+<link rel="canonical" href="https://whathowhy.com/2023/09/09/K8s_Install_Offline/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>Kubernetes Cluster With Docker | 8lovelife's life</title>
+  
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-MSKY7FDVPG"></script>
+    <script>
+      if (CONFIG.hostname === location.hostname) {
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-MSKY7FDVPG');
+      }
+    </script>
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">8lovelife's life</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">M&M</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://whathowhy.com/2023/09/09/K8s_Install_Offline/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/avatar_what.png">
+      <meta itemprop="name" content="Mark">
+      <meta itemprop="description" content="Stay Hungry, Stay Foolish.">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="8lovelife's life">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Kubernetes Cluster With Docker
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2023-09-09 22:10:00" itemprop="dateCreated datePublished" datetime="2023-09-09T22:10:00+08:00">2023-09-09</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2024-11-24 23:09:32" itemprop="dateModified" datetime="2024-11-24T23:09:32+08:00">2024-11-24</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Kubernetes/" itemprop="url" rel="index"><span itemprop="name">Kubernetes</span></a>
+                </span>
+            </span>
+
+          <br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="far fa-file-word"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>1.9k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="far fa-clock"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              <span>7 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <img src="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/photos/60.png" class="full-image">
+
+<p>Kubernetes 是一款开源的容器编排系统，用于自动部署、扩容和管理容器应用，因为 Kubernetes 的首字母和尾字母之间有8个字母，所以也被简称为 K8s。K8s 在 v1.24 版本之前默认集成了 Docker Engine 作为 K8s 的容器运行时，而在 v1.24 及之后的版本中使用 containerd 作为 K8s 的容器运行时，本篇文章记录如何在 v1.24之后的 K8s 版本中使用 Docker Engine 作为容器运行时以及如何离线安装 K8s 集群</p>
+<span id="more"></span>
+
+<h1 id="机器情况"><a href="#机器情况" class="headerlink" title="机器情况"></a>机器情况</h1><table>
+<thead>
+<tr>
+<th align="left"></th>
+<th align="right">server 1</th>
+<th align="right">server 2</th>
+<th align="right">server 3</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">是否有网</td>
+<td align="right">no</td>
+<td align="right">no</td>
+<td align="right">yes</td>
+</tr>
+<tr>
+<td align="left">主机名</td>
+<td align="right">master-01</td>
+<td align="right">worker-01</td>
+<td align="right">-</td>
+</tr>
+<tr>
+<td align="left">IP</td>
+<td align="right">192.168.1.20</td>
+<td align="right">192.168.1.21</td>
+<td align="right">-</td>
+</tr>
+<tr>
+<td align="left">操作系统</td>
+<td align="right">centos:7.6.1810</td>
+<td align="right">centos:7.6.1810</td>
+<td align="right">macos</td>
+</tr>
+<tr>
+<td align="left">CPU架构</td>
+<td align="right">x86</td>
+<td align="right">x86</td>
+<td align="right">arm</td>
+</tr>
+</tbody></table>
+<p>server 1 和 server 2 分别为 K8s 的 master 节点 和 worker 节点，server 3 用于提供安装 K8s 集群所需软件包</p>
+<h1 id="Docker-CE"><a href="#Docker-CE" class="headerlink" title="Docker CE"></a>Docker CE</h1><p>在 server 3 的 centos 容器中下载 Docker CE 安装包</p>
+<h2 id="On-server-3"><a href="#On-server-3" class="headerlink" title="On server 3"></a>On server 3</h2><p>server 3 安装了 Docker Desktop</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">运行 centos:7.6.1810</span></span><br><span class="line">docker run -itd --name centos --platform=linux/amd64 centos:7.6.1810</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">进入容器内部</span></span><br><span class="line">docker exec -it centos /bin/sh</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">添加 docker-ce yum 源</span></span><br><span class="line">yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">查看 docker-ce 最新的5个版本</span></span><br><span class="line">yum list docker-ce --showduplicates | sort -r | head -5</span><br><span class="line"></span><br><span class="line">docker-ce.x86_64            3:24.0.6-1.el7                      docker-ce-stable</span><br><span class="line">docker-ce.x86_64            3:24.0.5-1.el7                      docker-ce-stable</span><br><span class="line">docker-ce.x86_64            3:24.0.4-1.el7                      docker-ce-stable</span><br><span class="line">docker-ce.x86_64            3:24.0.3-1.el7                      docker-ce-stable</span><br><span class="line">docker-ce.x86_64            3:24.0.2-1.el7                      docker-ce-stable</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">下载 24.0.6-1.el7 版本的 docker</span></span><br><span class="line">yum install --downloadonly --downloaddir=/root/docker docker-ce-24.0.6-1.el7.x86_64</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">压缩 docker-ce rpm 安装包</span></span><br><span class="line">tar -zcvf docker.tar.gz docker</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">拷贝 docker.tar.gz 至宿主机</span></span><br><span class="line">docker cp centos:/root/docker.tar.gz downloads</span><br></pre></td></tr></table></figure>
+
+<h2 id="On-server-1"><a href="#On-server-1" class="headerlink" title="On server 1"></a>On server 1</h2><p>server 2 和 server 1 进行同样操作，拷贝 docker.tar.gz 至服务器并解压缩</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">解压缩</span></span><br><span class="line">tar -zxvf docker.tar.gz</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">安装 docker</span></span><br><span class="line">rpm -ivh --replacefiles --replacepkgs docker/*.rpm</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">启动 docker 并设置开启启动</span></span><br><span class="line">systemctl enable docker</span><br><span class="line">systemctl start docker</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">配置 docker cgroupdriver 为 systemd</span></span><br><span class="line">cat &gt; /etc/docker/daemon.json &lt;&lt; EOF </span><br><span class="line">&#123;</span><br><span class="line">  &quot;exec-opts&quot;: [&quot;native.cgroupdriver=systemd&quot;]</span><br><span class="line">&#125;</span><br><span class="line">EOF</span><br><span class="line"></span><br><span class="line">后续使用 kubeadm 搭建的 k8s 集群，默认使用 systemd 作为 cgroupdriver，这里保持一致</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">重启 docker</span></span><br><span class="line">systemctl restart docker</span><br></pre></td></tr></table></figure>
+
+<h1 id="Kubernetes"><a href="#Kubernetes" class="headerlink" title="Kubernetes"></a>Kubernetes</h1><p>在 server 3 的 centos 容器中下载 Kubernetes 所需组件</p>
+<blockquote>
+<ol>
+<li>kubectl: k8s 中的命令行工具</li>
+<li>kubelet: 在集群中 Worker Node (Node) 上运行的代理，确保容器在 Pod 中运行</li>
+<li>kubeadm: 用于构建 k8s 集群</li>
+<li>kube-proxy: 在集群中 Worker Node (Node) 上运行的网络代理，确保从集群内&#x2F;外可访问 Pod</li>
+<li>kube-apiserver: 属于集群中 Master Node (Control Plane) 的 front end</li>
+<li>etcd: 在集群中 Master Node (Control Plane) 上运行的一致性高可用 key&#x2F;value 存储，保存所有的集群数据</li>
+<li>kube-scheduler: 用于监听新创建的未分配 Worker Node (Node) 的 Pod，并将其调度到合适的 Worker Node (Node) 中，运行在集群中的 Master Node (Control Plane) 上</li>
+<li>kube-controller-manager:  运行在集群中的 Master Node (Control Plane) 上，包括 Deployment Controller &#x2F; Node controller &#x2F; Replica controller &#x2F; EndpointSlice controller &#x2F; ServiceAccount controller 等</li>
+<li>pause: 也称为 infra 容器，在 Pod 中作为 Linux 命名空间共享的基础，并且为 Pod 提供 1 号进程</li>
+<li>coredns: 选择 coredns 为 k8s 集群提供 DNS 服务</li>
+<li>flannel: 选择 flannel 作为 CNI（Container Network Interface）的实现，完成跨主机容器通信</li>
+<li>cri-dockerd: docker engine wrapper 以符合 k8s CRI（Container Runtime Interface） 标准</li>
+</ol>
+</blockquote>
+<h2 id="On-server-3-1"><a href="#On-server-3-1" class="headerlink" title="On server 3"></a>On server 3</h2><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">进入容器内部</span></span><br><span class="line">docker exec -it centos /bin/sh</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">添加 k8s yum 源</span></span><br><span class="line">cat &gt;&gt; /etc/yum.repos.d/kubernetes.repo &lt;&lt; EOF</span><br><span class="line">[kubernetes]</span><br><span class="line">name=Kubernetes</span><br><span class="line">baseurl=https://packages.cloud.google.com/yum/repos/kubernetes-el7-x86_64</span><br><span class="line">enabled=1</span><br><span class="line">gpgcheck=1</span><br><span class="line">repo_gpgcheck=1</span><br><span class="line">gpgkey=https://packages.cloud.google.com/yum/doc/yum-key.gpg https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg</span><br><span class="line">EOF</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">缓存安装提速</span></span><br><span class="line">yum makecache fast</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">下载 1.28.1-0.x86_64 版本的 第 1~3 组件</span></span><br><span class="line">yum install --downloadonly --downloaddir=/root/k8s kubectl-1.28.1-0.x86_64 kubeadm-1.28.1-0.x86_64 kubelet-1.28.1-0.x86_64</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">导出 k8s 依赖的第 4～10 docker image 组件</span></span><br><span class="line">docker pull --platform=linux/amd64 registry.k8s.io/pause:3.9</span><br><span class="line">docker save registry.k8s.io/pause:3.9 &gt; /root/k8s/k8s-images/pause.tar</span><br><span class="line"></span><br><span class="line">docker pull --platform=linux/amd64 registry.k8s.io/kube-apiserver:v1.28.1</span><br><span class="line">docker save registry.k8s.io/kube-apiserver:v1.28.1 &gt; /root/k8s/k8s-images/kube-apiserver.tar</span><br><span class="line"></span><br><span class="line">docker pull --platform=linux/amd64 registry.k8s.io/kube-controller-manager:v1.28.1</span><br><span class="line">docker save registry.k8s.io/kube-controller-manager:v1.28.1 &gt; /root/k8s/k8s-images/kube-controller-manager.tar</span><br><span class="line"></span><br><span class="line">docker pull --platform=linux/amd64 registry.k8s.io/kube-scheduler:v1.28.1</span><br><span class="line">docker save registry.k8s.io/kube-scheduler:v1.28.1 &gt; /root/k8s/k8s-images/kube-scheduler.tar</span><br><span class="line"></span><br><span class="line">docker pull --platform=linux/amd64 registry.k8s.io/kube-proxy:v1.28.1</span><br><span class="line">docker save registry.k8s.io/kube-proxy:v1.28.1 &gt; /root/k8s/k8s-images/kube-proxy.tar</span><br><span class="line"></span><br><span class="line">docker pull --platform=linux/amd64 registry.k8s.io/etcd:3.5.9-0</span><br><span class="line">docker save registry.k8s.io/etcd:3.5.9-0 &gt; /root/k8s/k8s-images/etcd.tar</span><br><span class="line"></span><br><span class="line">docker pull --platform=linux/amd64 registry.k8s.io/coredns/coredns:v1.10.1</span><br><span class="line">docker save registry.k8s.io/coredns/coredns:v1.10.1 &gt; /root/k8s/k8s-images/coredns.tar</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">下载 k8s 依赖的 kube-flannel.yml</span></span><br><span class="line">wget -P /root/k8s/k8s-flannel https://github.com/flannel-io/flannel/releases/latest/download/kube-flannel.yml</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">导出 flannel 依赖的 docker image 组件</span></span><br><span class="line">cat kube-flannel.yml | grep image</span><br><span class="line">      image: docker.io/flannel/flannel-cni-plugin:v1.2.0</span><br><span class="line">      image: docker.io/flannel/flannel:v0.22.2</span><br><span class="line">      image: docker.io/flannel/flannel:v0.22.2</span><br><span class="line"></span><br><span class="line">docker pull --platform=linux/amd64 docker.io/flannel/flannel:v0.22.2</span><br><span class="line">docker save docker.io/flannel/flannel:v0.22.2 &gt; /root/k8s/k8s-flannel/flannel.tar</span><br><span class="line"></span><br><span class="line">docker pull --platform=linux/amd64 docker.io/flannel/flannel-cni-plugin:v1.2.0</span><br><span class="line">docker save docker.io/flannel/flannel-cni-plugin:v1.2.0 &gt; /root/k8s/k8s-flannel/flannel-cni-plugin.tar</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">下载 v0.3.4 版本的 cri-dockerd</span></span><br><span class="line">wget -P /root/k8s/k8s-cri-dockerd https://github.com/Mirantis/cri-dockerd/releases/download/v0.3.4/cri-dockerd-0.3.4-3.el7.x86_64.rpm</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">压缩 k8s 安装依赖</span></span><br><span class="line">tar -zcvf k8s.tar.gz k8s</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">拷贝 k8s.tar.gz 至宿主机</span></span><br><span class="line">docker cp centos:/root/k8s.tar.gz downloads</span><br></pre></td></tr></table></figure>
+<h2 id="On-server-1-1"><a href="#On-server-1-1" class="headerlink" title="On server 1"></a>On server 1</h2><p>安装 k8s 的一些配置操作，server 2 和 server 1 进行同样操作</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">关闭防火墙</span></span><br><span class="line">systemctl stop firewalld</span><br><span class="line">systemctl disable firewalld</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">关闭 selinux</span></span><br><span class="line">setenforce 0</span><br><span class="line">sed -i &#x27;s/enforcing/disabled/&#x27; /etc/selinux/config</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">关闭 swap</span></span><br><span class="line">swapoff -a</span><br><span class="line">sed -ri &#x27;s/.swap./#&amp;/&#x27; /etc/fsta</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">添加 hosts</span></span><br><span class="line">cat &gt;&gt; /etc/hosts &lt;&lt; EOF</span><br><span class="line">192.168.1.20 master-01</span><br><span class="line">192.168.1.21 worker-01 </span><br><span class="line">EOF</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">网络配置</span></span><br><span class="line">cat &gt; /etc/sysctl.d/k8s.conf &lt;&lt; EOF</span><br><span class="line">net.bridge.bridge-nf-call-ip6tables = 1</span><br><span class="line">net.bridge.bridge-nf-call-iptables = 1</span><br><span class="line">EOF</span><br><span class="line">echo 1 &gt; /proc/sys/net/ipv4/ip_forward</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">重新加载配置</span></span><br><span class="line">modprobe br_netfilter</span><br><span class="line">sysctl --system</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">拷贝 k8s.tar.gz 至服务器并解压缩</span></span><br><span class="line">tar -zxvf k8s.tar.gz</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">安装 k8s</span></span><br><span class="line">rpm -ivh --replacefiles --replacepkgs k8s/*.rpm</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">设置 kubelet 开机启动</span></span><br><span class="line">systemctl enable kubelet</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">开启 kubectl 命令补全</span></span><br><span class="line">source &lt;(kubectl completion bash)</span><br><span class="line">kubectl completion bash &gt; /etc/bash_completion.d/kubectl</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">版本查看</span></span><br><span class="line">kubectl version</span><br><span class="line">Client Version: v1.28.1</span><br><span class="line">-----------------------</span><br><span class="line">kubelet --version</span><br><span class="line">Kubernetes v1.28.1</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">导入 k8s 依赖镜像</span></span><br><span class="line">docker load &lt; k8s/k8s-images/pause.tar</span><br><span class="line">docker load &lt; k8s/k8s-images/kube-apiserver.tar</span><br><span class="line">docker load &lt; k8s/k8s-images/kube-controller-manager.tar</span><br><span class="line">docker load &lt; k8s/k8s-images/kube-scheduler.tar</span><br><span class="line">docker load &lt; k8s/k8s-images/kube-proxy.tar</span><br><span class="line">docker load &lt; k8s/k8s-images/etcd.tar</span><br><span class="line">docker load &lt; k8s/k8s-images/coredns.tar</span><br><span class="line">docker load &lt; k8s/k8s-flannel/flannel-cni-plugin.tar</span><br><span class="line">docker laod &lt; k8s/k8s-flannel/flannel.tar</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">安装 cri-dockerd</span></span><br><span class="line">rpm -ivh --replacefiles --replacepkgs k8s/k8s-cri-dockerd/*.rpm</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">启动 cri-dockerd</span></span><br><span class="line">systemctl enable cri-docker.socket</span><br><span class="line">systemctl start cri-docker.socket cri-docker</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">查看 cri-docker 状况</span></span><br><span class="line">systemctl status cri-docker</span><br><span class="line">● cri-docker.service - CRI Interface for Docker Application Container Engine</span><br><span class="line">   Loaded: loaded (/usr/lib/systemd/system/cri-docker.service; enabled; vendor preset: disabled)</span><br><span class="line">   Active: active (running) since Wed 2023-09-06 20:48:16 CST; 4min 8s ago</span><br><span class="line">     Docs: https://docs.mirantis.com</span><br><span class="line"> Main PID: 236691 (cri-dockerd)</span><br><span class="line">    Tasks: 13</span><br><span class="line">   Memory: 14.1M</span><br><span class="line">   CGroup: /system.slice/cri-docker.service</span><br><span class="line">           └─236691 /usr/bin/cri-dockerd --container-runtime-endpoint fd://</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">修改 cri-docker.service 中的 ExecStart</span></span><br><span class="line">ExecStart=/usr/bin/cri-dockerd --container-runtime-endpoint fd:// --network-plugin=cni --pod-infra-container-image=registry.k8s.io/pause:3.9</span><br><span class="line"></span><br><span class="line">1. --network-plugin: 更改网络插件使用 cni, 因为默认的 kubenet 没有实现跨 Node 的网络访问</span><br><span class="line">2. --pod-infra-container-image: 更改 infra 容器景象版本及 pause 版本</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">重启 cri-docker</span></span><br><span class="line">systemctl daemon-reload</span><br><span class="line">systemclt restart cri-docker</span><br></pre></td></tr></table></figure>
+
+<h1 id="K8s-集群配置"><a href="#K8s-集群配置" class="headerlink" title="K8s 集群配置"></a>K8s 集群配置</h1><p>使用 kubeadm 进行集群创建</p>
+<h2 id="On-server-1-2"><a href="#On-server-1-2" class="headerlink" title="On server 1"></a>On server 1</h2><p>仅在 server 1 上进行如下操作</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">初始化 master node</span></span><br><span class="line">kubeadm init --kubernetes-version=v1.28.1 --apiserver-advertise-address=192.168.1.20 --pod-network-cidr=10.10.0.0/16 --cri-socket=unix:///var/run/cri-dockerd.sock</span><br><span class="line"></span><br><span class="line">1. --apiserver-advertise-address: 指定 server 1 ip</span><br><span class="line">2. --pod-network-cidr: 指定 Pod 网络段</span><br><span class="line">3. --cri-socket: 指定使用 docker engine 作为 k8s container runtime</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">按提示进行配置</span></span><br><span class="line">mkdir -p $HOME/.kube</span><br><span class="line">sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config</span><br><span class="line">sudo chown $(id -u):$(id -g) $HOME/.kube/config</span><br><span class="line">export KUBECONFIG=/etc/kubernetes/admin.conf</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">创建 Node Join Token</span></span><br><span class="line">kubeadm token create --print-join-command</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">修改 kube-flannel.yml</span> </span><br><span class="line">  net-conf.json: |</span><br><span class="line">    &#123;</span><br><span class="line">      &quot;Network&quot;: &quot;10.10.0.0/16&quot;, // 与 --pod-network-cidr 设置一致</span><br><span class="line">      &quot;Backend&quot;: &#123;</span><br><span class="line">        &quot;Type&quot;: &quot;vxlan&quot;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">部署 kube-flannel.yml</span></span><br><span class="line">kubectl apply -f kube-flannel.yml     </span><br></pre></td></tr></table></figure>
+
+<h2 id="On-server-2"><a href="#On-server-2" class="headerlink" title="On server 2"></a>On server 2</h2><p>仅在 server 2 上进行如下操作</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">Worker Node 加入集群</span></span><br><span class="line">kubeadm join 192.168.1.20:6443 --token mpyekp.e32b91pvl2itcld8 --discovery-token-ca-cert-hash sha256:932b2c4bda8597bfe2daf75c7dde53ae1bb5e55b488beaf628a18526d3a1c334 --cri-socket=unix:///var/run/cri-dockerd.sock</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">配置 crictl</span> </span><br><span class="line">cat &gt; /etc/crictl.yaml &lt;&lt; EOF</span><br><span class="line">runtime-endpoint: unix:///var/run/cri-dockerd.sock</span><br><span class="line">image-endpoint: unix:///var/run/cri-dockerd.sock</span><br><span class="line">timeout: 10</span><br><span class="line">debug: false</span><br><span class="line">EOF</span><br></pre></td></tr></table></figure>
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/Docker/" rel="tag"># Docker</a>
+              <a href="/tags/Kubernetes/" rel="tag"># Kubernetes</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2023/08/31/ClickHouse2R2S/" rel="prev" title="Deploying ClickHouse - 2S-2R">
+      <i class="fa fa-chevron-left"></i> Deploying ClickHouse - 2S-2R
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2023/11/05/Jdbc/" rel="next" title="Java Database Connectivity">
+      Java Database Connectivity <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="gitalk-container"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%9C%BA%E5%99%A8%E6%83%85%E5%86%B5"><span class="nav-number">1.</span> <span class="nav-text">机器情况</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Docker-CE"><span class="nav-number">2.</span> <span class="nav-text">Docker CE</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#On-server-3"><span class="nav-number">2.1.</span> <span class="nav-text">On server 3</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#On-server-1"><span class="nav-number">2.2.</span> <span class="nav-text">On server 1</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Kubernetes"><span class="nav-number">3.</span> <span class="nav-text">Kubernetes</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#On-server-3-1"><span class="nav-number">3.1.</span> <span class="nav-text">On server 3</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#On-server-1-1"><span class="nav-number">3.2.</span> <span class="nav-text">On server 1</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#K8s-%E9%9B%86%E7%BE%A4%E9%85%8D%E7%BD%AE"><span class="nav-number">4.</span> <span class="nav-text">K8s 集群配置</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#On-server-1-2"><span class="nav-number">4.1.</span> <span class="nav-text">On server 1</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#On-server-2"><span class="nav-number">4.2.</span> <span class="nav-text">On server 2</span></a></li></ol></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="Mark"
+      src="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/avatar_what.png">
+  <p class="site-author-name" itemprop="name">Mark</p>
+  <div class="site-description" itemprop="description">Stay Hungry, Stay Foolish.</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">64</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">18</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">28</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://space.bilibili.com/1268283" title="Bilibili → https:&#x2F;&#x2F;space.bilibili.com&#x2F;1268283" rel="noopener" target="_blank"><i class="fas fa-video fa-fw"></i>Bilibili</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://www.youtube.com/channel/UCgo_k4UEkGUNrG-resCDVKw" title="YouTube → https:&#x2F;&#x2F;www.youtube.com&#x2F;channel&#x2F;UCgo_k4UEkGUNrG-resCDVKw" rel="noopener" target="_blank"><i class="fab fa-youtube fa-fw"></i>YouTube</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 2015 – 
+  <span itemprop="copyrightYear">2024</span>
+  <span class="with-love">
+    <i class="fas fa-gamepad"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Mark</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-chart-area"></i>
+    </span>
+    <span title="站点总字数">67k</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+    <span title="站点阅读时长">4:02</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://mist.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a> 强力驱动
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.css">
+
+<script>
+NexT.utils.loadComments(document.querySelector('#gitalk-container'), () => {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.js', () => {
+    var gitalk = new Gitalk({
+      clientID    : '1d971a932df33dd64e19',
+      clientSecret: 'a51b84396586902b536b1b26a917003af50ea152',
+      repo        : 'hexo-comments',
+      owner       : 'dreamming',
+      admin       : ['dreamming'],
+      id          : 'f6bea9dd1d74e5e586b02e491baff90f',
+        language: 'zh-CN',
+      distractionFreeMode: false
+    });
+    gitalk.render('gitalk-container');
+  }, window.Gitalk);
+});
+</script>
+
+</body>
+</html>

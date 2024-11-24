@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.4.2">
+
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-N9NJ5HB');</script>
+<!-- End Google Tag Manager -->
+
+<!-- Google Tag Manager (noscript) -->
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-N9NJ5HB"
+height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+<!-- End Google Tag Manager (noscript) -->
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"whathowhy.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"hide","padding":18,"offset":12,"onmobile":true},"copycode":{"enable":true,"show_result":true,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="大部分编程语言都支持异步编程，异步编程作为一种并发编程模型，可以使用少量的操作系统线程完成大量的并发任务。通过多线程也可以提高系统处理任务的效率。本文记录说明他们之间的差异与各自的优势，并会给出一个简单HTTP SERVER（Rust语言实现）多线程版本与异步版本的基准测试 并发模型与常规的顺序编程相比，并发编程不那么标准化，不同语言有各自所支持的并发编程模型，并发性可以由不同的并发编程模型表">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Rust异步编程">
+<meta property="og:url" content="https://whathowhy.com/2021/11/21/RustAsync/index.html">
+<meta property="og:site_name" content="8lovelife&#39;s life">
+<meta property="og:description" content="大部分编程语言都支持异步编程，异步编程作为一种并发编程模型，可以使用少量的操作系统线程完成大量的并发任务。通过多线程也可以提高系统处理任务的效率。本文记录说明他们之间的差异与各自的优势，并会给出一个简单HTTP SERVER（Rust语言实现）多线程版本与异步版本的基准测试 并发模型与常规的顺序编程相比，并发编程不那么标准化，不同语言有各自所支持的并发编程模型，并发性可以由不同的并发编程模型表">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/photos/3.png">
+<meta property="article:published_time" content="2021-11-21T08:13:00.000Z">
+<meta property="article:modified_time" content="2024-11-24T15:09:32.166Z">
+<meta property="article:author" content="Mark">
+<meta property="article:tag" content="Docker">
+<meta property="article:tag" content="并发">
+<meta property="article:tag" content="多线程">
+<meta property="article:tag" content="Rust">
+<meta property="article:tag" content="异步">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/photos/3.png">
+
+<link rel="canonical" href="https://whathowhy.com/2021/11/21/RustAsync/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>Rust异步编程 | 8lovelife's life</title>
+  
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-MSKY7FDVPG"></script>
+    <script>
+      if (CONFIG.hostname === location.hostname) {
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-MSKY7FDVPG');
+      }
+    </script>
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">8lovelife's life</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">M&M</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://whathowhy.com/2021/11/21/RustAsync/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/avatar_what.png">
+      <meta itemprop="name" content="Mark">
+      <meta itemprop="description" content="Stay Hungry, Stay Foolish.">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="8lovelife's life">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Rust异步编程
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2021-11-21 16:13:00" itemprop="dateCreated datePublished" datetime="2021-11-21T16:13:00+08:00">2021-11-21</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2024-11-24 23:09:32" itemprop="dateModified" datetime="2024-11-24T23:09:32+08:00">2024-11-24</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Rust/" itemprop="url" rel="index"><span itemprop="name">Rust</span></a>
+                </span>
+            </span>
+
+          <br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="far fa-file-word"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>1.2k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="far fa-clock"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              <span>4 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <img src="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/photos/3.png" class="full-image" />
+
+<p>大部分编程语言都支持异步编程，异步编程作为一种并发编程模型，可以使用少量的操作系统线程完成大量的并发任务。通过多线程也可以提高系统处理任务的效率。本文记录说明他们之间的差异与各自的优势，并会给出一个简单HTTP SERVER（Rust语言实现）多线程版本与异步版本的基准测试</p>
+<h1 id="并发模型"><a href="#并发模型" class="headerlink" title="并发模型"></a>并发模型</h1><p>与常规的顺序编程相比，并发编程不那么标准化，不同语言有各自所支持的并发编程模型，并发性可以由不同的并发编程模型表达。以下为常见并发编程模型</p>
+<span id="more"></span>
+
+<h2 id="OS-threads"><a href="#OS-threads" class="headerlink" title="OS threads"></a>OS threads</h2><p>线程适用于少量任务的使用场景，线程通常附带CPU、内存的开销。线程间的切换是有成本的且很昂贵，即使是空闲的线程也在消耗系统资源。线程池可以解决一部分开销问题，但不能完全解决，使用线程不足以支持大量IO绑定型任务，如：服务器、数据库等。多线程对于现有代码的改造不依赖于特定的编程模型，不需要进行大量的代码重构就可以让现有的同步代码支持多线程</p>
+<h2 id="Event-driven-programming"><a href="#Event-driven-programming" class="headerlink" title="Event-driven programming"></a>Event-driven programming</h2><p>事件驱动编程与回调结合使用，可以有很好的性能表现，但通常会导致冗长的非线性控制流，很难遵循程序的数据流与错误传播</p>
+<h2 id="Coroutines"><a href="#Coroutines" class="headerlink" title="Coroutines"></a>Coroutines</h2><p>协程与线程一样，不需要特定的编程模型，很容易进行代码改造。与异步相似，能够支持处理大量的任务。协程抽象了对系统编程和自定义运行时实现器很重要的低级细节</p>
+<h2 id="The-actor-model"><a href="#The-actor-model" class="headerlink" title="The actor model"></a>The actor model</h2><p>参与者模型将所有并发计算划分为称为参与者的单元，这些单元通过会出错的消息传递进行通信，就像在分布式系统中一样。参与者模型可以被高效实现，但它留下了许多实际问题，如流程控制和重试逻辑</p>
+<h1 id="Rust中的异步"><a href="#Rust中的异步" class="headerlink" title="Rust中的异步"></a>Rust中的异步</h1><p>异步可以降低CPU、内存开销，尤其对于大量IO绑定型任务的工作负载。同等条件下，可以比多线程处理更多的任务数量级。异步并不意味着一定比多线程好，对于小任务量的工作负载，多线程同样能够胜任。与其他编程语言不同，Rust的异步是惰性的，只有在发生 polled 的时候异步代码才会真正执行。Rust异步支持单线程，也支持多线程</p>
+<h1 id="HTTP-SERVER-基准测试"><a href="#HTTP-SERVER-基准测试" class="headerlink" title="HTTP SERVER 基准测试"></a>HTTP SERVER 基准测试</h1><p>使用WRK进行HTTP基准测试 </p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">docker run --rm  8lovelife/wrk -txxx -cxxx -d30 \</span><br><span class="line">--timeout=15 http://host.docker.internal:port</span><br><span class="line"></span><br><span class="line">-t: 线程数</span><br><span class="line">-c: HTTP连接数</span><br><span class="line">-d: 测试持续时间。-d30 表示持续测试30s</span><br><span class="line">N/A: 宕机</span><br></pre></td></tr></table></figure>
+
+<h2 id="ROUND-1"><a href="#ROUND-1" class="headerlink" title="ROUND 1"></a>ROUND 1</h2><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">线程数:10</span><br><span class="line">HTTP链接数:10</span><br></pre></td></tr></table></figure>
+<table>
+<thead>
+<tr>
+<th align="left">-</th>
+<th align="center">QPS</th>
+<th align="center">THROUGHPUT</th>
+<th align="center">AVG</th>
+<th align="center">MEMORY QUOTA</th>
+<th align="center">CPU QUOTA</th>
+<th align="center">TIMEOUT</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">V1 single-thread</td>
+<td align="center">0.63</td>
+<td align="center">19</td>
+<td align="center">12.23s</td>
+<td align="center">10M</td>
+<td align="center">2</td>
+<td align="center">0</td>
+</tr>
+<tr>
+<td align="left">V2 multi-thread</td>
+<td align="center">6.32</td>
+<td align="center">190</td>
+<td align="center">1.51s</td>
+<td align="center">10M</td>
+<td align="center">2</td>
+<td align="center">0</td>
+</tr>
+<tr>
+<td align="left">V3 thread-pool</td>
+<td align="center">6.29</td>
+<td align="center">189</td>
+<td align="center">1.52s</td>
+<td align="center">10M</td>
+<td align="center">2</td>
+<td align="center">0</td>
+</tr>
+<tr>
+<td align="left">V4 async single-thread</td>
+<td align="center">6.32</td>
+<td align="center">190</td>
+<td align="center">1.51s</td>
+<td align="center">10M</td>
+<td align="center">2</td>
+<td align="center">0</td>
+</tr>
+<tr>
+<td align="left">V5 async multi-thread</td>
+<td align="center">6.32</td>
+<td align="center">190</td>
+<td align="center">1.51s</td>
+<td align="center">10M</td>
+<td align="center">2</td>
+<td align="center">0</td>
+</tr>
+</tbody></table>
+<h2 id="ROUND-2"><a href="#ROUND-2" class="headerlink" title="ROUND 2"></a>ROUND 2</h2><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">线程数:100</span><br><span class="line">HTTP链接数:100</span><br></pre></td></tr></table></figure>
+<table>
+<thead>
+<tr>
+<th align="left">-</th>
+<th align="center">QPS</th>
+<th align="center">THROUGHPUT</th>
+<th align="center">AVG</th>
+<th align="center">MEMORY QUOTA</th>
+<th align="center">CPU QUOTA</th>
+<th align="center">TIMEOUT</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">V1 single-thread</td>
+<td align="center">0.63</td>
+<td align="center">19</td>
+<td align="center">16.50s</td>
+<td align="center">10M</td>
+<td align="center">2</td>
+<td align="center">0</td>
+</tr>
+<tr>
+<td align="left">V2 multi-thread</td>
+<td align="center">63.21</td>
+<td align="center">1900</td>
+<td align="center">1.51s</td>
+<td align="center">10M</td>
+<td align="center">2</td>
+<td align="center">0</td>
+</tr>
+<tr>
+<td align="left">V3 thread-pool</td>
+<td align="center">6.61</td>
+<td align="center">199</td>
+<td align="center">11.67</td>
+<td align="center">10M</td>
+<td align="center">2</td>
+<td align="center">0</td>
+</tr>
+<tr>
+<td align="left">V4 async single-thread</td>
+<td align="center">63.22</td>
+<td align="center">1900</td>
+<td align="center">1.51</td>
+<td align="center">10M</td>
+<td align="center">2</td>
+<td align="center">0</td>
+</tr>
+<tr>
+<td align="left">V5 async multi-thread</td>
+<td align="center">63.18</td>
+<td align="center">1900</td>
+<td align="center">1.51</td>
+<td align="center">10M</td>
+<td align="center">2</td>
+<td align="center">0</td>
+</tr>
+</tbody></table>
+<h2 id="ROUND-3"><a href="#ROUND-3" class="headerlink" title="ROUND 3"></a>ROUND 3</h2><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">线程数:1000</span><br><span class="line">HTTP链接数:1000</span><br></pre></td></tr></table></figure>
+<table>
+<thead>
+<tr>
+<th align="left">-</th>
+<th align="center">QPS</th>
+<th align="center">THROUGHPUT</th>
+<th align="center">AVG</th>
+<th align="center">MEMORY QUOTA</th>
+<th align="center">CPU QUOTA</th>
+<th align="center">TIMEOUT</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">V1 single-thread</td>
+<td align="center">0.63</td>
+<td align="center">19</td>
+<td align="center">16.50s</td>
+<td align="center">10M</td>
+<td align="center">2</td>
+<td align="center">0</td>
+</tr>
+<tr>
+<td align="left">V2 multi-thread</td>
+<td align="center">NA</td>
+<td align="center">N&#x2F;A</td>
+<td align="center">N&#x2F;A</td>
+<td align="center">10M</td>
+<td align="center">2</td>
+<td align="center">N&#x2F;A</td>
+</tr>
+<tr>
+<td align="left">V3 thread-pool</td>
+<td align="center">6.60</td>
+<td align="center">199</td>
+<td align="center">15.74s</td>
+<td align="center">10M</td>
+<td align="center">2</td>
+<td align="center">0</td>
+</tr>
+<tr>
+<td align="left">V4 async single-thread</td>
+<td align="center">614.44</td>
+<td align="center">18529</td>
+<td align="center">1.54s</td>
+<td align="center">10M</td>
+<td align="center">2</td>
+<td align="center">0</td>
+</tr>
+<tr>
+<td align="left">V5 async multi-thread</td>
+<td align="center">615.77</td>
+<td align="center">18565</td>
+<td align="center">1.54s</td>
+<td align="center">10M</td>
+<td align="center">2</td>
+<td align="center">0</td>
+</tr>
+</tbody></table>
+<h2 id="ROUND-4"><a href="#ROUND-4" class="headerlink" title="ROUND 4"></a>ROUND 4</h2><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">线程数:3000</span><br><span class="line">HTTP链接数:3000</span><br></pre></td></tr></table></figure>
+<table>
+<thead>
+<tr>
+<th align="left">-</th>
+<th align="center">QPS</th>
+<th align="center">THROUGHPUT</th>
+<th align="center">AVG</th>
+<th align="center">MEMORY QUOTA</th>
+<th align="center">CPU QUOTA</th>
+<th align="center">TIMEOUT</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">V1 single-thread</td>
+<td align="center">0.73</td>
+<td align="center">23</td>
+<td align="center">16.50s</td>
+<td align="center">10M</td>
+<td align="center">2</td>
+<td align="center">5</td>
+</tr>
+<tr>
+<td align="left">V2 multi-thread</td>
+<td align="center">NA</td>
+<td align="center">N&#x2F;A</td>
+<td align="center">N&#x2F;A</td>
+<td align="center">10M</td>
+<td align="center">2</td>
+<td align="center">N&#x2F;A</td>
+</tr>
+<tr>
+<td align="left">V3 thread-pool</td>
+<td align="center">6.78</td>
+<td align="center">209</td>
+<td align="center">13.52s</td>
+<td align="center">10M</td>
+<td align="center">2</td>
+<td align="center">10</td>
+</tr>
+<tr>
+<td align="left">V4 async single-thread</td>
+<td align="center">673.95</td>
+<td align="center">20734</td>
+<td align="center">2.72s</td>
+<td align="center">10M</td>
+<td align="center">2</td>
+<td align="center">0</td>
+</tr>
+<tr>
+<td align="left">V5 async multi-thread</td>
+<td align="center">635.85</td>
+<td align="center">19738</td>
+<td align="center">3.49s</td>
+<td align="center">10M</td>
+<td align="center">2</td>
+<td align="center">0</td>
+</tr>
+</tbody></table>
+<h2 id="ROUND-5"><a href="#ROUND-5" class="headerlink" title="ROUND 5"></a>ROUND 5</h2><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">线程数:5000</span><br><span class="line">HTTP链接数:5000</span><br></pre></td></tr></table></figure>
+<table>
+<thead>
+<tr>
+<th align="left">-</th>
+<th align="center">QPS</th>
+<th align="center">THROUGHPUT</th>
+<th align="center">AVG</th>
+<th align="center">MEMORY QUOTA</th>
+<th align="center">CPU QUOTA</th>
+<th align="center">TIMEOUT</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">V1 single thread</td>
+<td align="center">0.73</td>
+<td align="center">23</td>
+<td align="center">16.50s</td>
+<td align="center">10M</td>
+<td align="center">2</td>
+<td align="center">5</td>
+</tr>
+<tr>
+<td align="left">V2 multi-thread</td>
+<td align="center">N&#x2F;A</td>
+<td align="center">N&#x2F;A</td>
+<td align="center">N&#x2F;A</td>
+<td align="center">10M</td>
+<td align="center">2</td>
+<td align="center">N&#x2F;A</td>
+</tr>
+<tr>
+<td align="left">V3 thread-pool</td>
+<td align="center">7.59</td>
+<td align="center">239</td>
+<td align="center">15.96s</td>
+<td align="center">10M</td>
+<td align="center">2</td>
+<td align="center">40</td>
+</tr>
+<tr>
+<td align="left">V4 async single-thread</td>
+<td align="center">593.99</td>
+<td align="center">20044</td>
+<td align="center">4.64s</td>
+<td align="center">10M</td>
+<td align="center">2</td>
+<td align="center">0</td>
+</tr>
+<tr>
+<td align="left">V4 async single-thread</td>
+<td align="center">911.34</td>
+<td align="center">28938</td>
+<td align="center">2.15s</td>
+<td align="center">20M</td>
+<td align="center">2</td>
+<td align="center">0</td>
+</tr>
+<tr>
+<td align="left">V5 async multi-thread</td>
+<td align="center">N&#x2F;A</td>
+<td align="center">N&#x2F;A</td>
+<td align="center">N&#x2F;A</td>
+<td align="center">10M</td>
+<td align="center">2</td>
+<td align="center">N&#x2F;A</td>
+</tr>
+<tr>
+<td align="left">V5 async multi-thread</td>
+<td align="center">896.92</td>
+<td align="center">28978</td>
+<td align="center">2.42s</td>
+<td align="center">20M</td>
+<td align="center">2</td>
+<td align="center">0</td>
+</tr>
+</tbody></table>
+<h1 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h1><p><a target="_blank" rel="noopener" href="https://rust-lang.github.io/async-book/01_getting_started/02_why_async.html">Asynchronous Programming in Rust</a></p>
+<h1 id="附录"><a href="#附录" class="headerlink" title="附录"></a>附录</h1><h2 id="docker-compose-yml"><a href="#docker-compose-yml" class="headerlink" title="docker-compose.yml"></a>docker-compose.yml</h2><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br></pre></td><td class="code"><pre><span class="line">version: &#x27;3.4&#x27;</span><br><span class="line"></span><br><span class="line">services:</span><br><span class="line">  webserver_v1:</span><br><span class="line">    image: 8lovelife/webserver:v1</span><br><span class="line">    ports:</span><br><span class="line">      - 17878:7878</span><br><span class="line">    deploy:</span><br><span class="line">      resources:</span><br><span class="line">        limits:</span><br><span class="line">          cpus: &#x27;2&#x27;</span><br><span class="line">          memory: 10M</span><br><span class="line"></span><br><span class="line">  webserver_v2:</span><br><span class="line">    image: 8lovelife/webserver:v2</span><br><span class="line">    ports:</span><br><span class="line">      - 27878:7878</span><br><span class="line">    deploy:</span><br><span class="line">      resources:</span><br><span class="line">        limits:</span><br><span class="line">          cpus: &#x27;2&#x27;</span><br><span class="line">          memory: 10M</span><br><span class="line"></span><br><span class="line">  webserver_v3:</span><br><span class="line">    image: 8lovelife/webserver:v3</span><br><span class="line">    ports:</span><br><span class="line">      - 37878:7878</span><br><span class="line">    deploy:</span><br><span class="line">      resources:</span><br><span class="line">        limits:</span><br><span class="line">          cpus: &#x27;2&#x27;</span><br><span class="line">          memory: 10M</span><br><span class="line"></span><br><span class="line">  webserver_v4:</span><br><span class="line">    image: 8lovelife/webserver:v4</span><br><span class="line">    ports:</span><br><span class="line">      - 47878:7878</span><br><span class="line">    deploy:</span><br><span class="line">      resources:</span><br><span class="line">        limits:</span><br><span class="line">          cpus: &#x27;2&#x27;</span><br><span class="line">          memory: 20M</span><br><span class="line"></span><br><span class="line">  webserver_v5:</span><br><span class="line">    image: 8lovelife/webserver:v5</span><br><span class="line">    ports:</span><br><span class="line">      - 57878:7878</span><br><span class="line">    deploy:</span><br><span class="line">      resources:</span><br><span class="line">        limits:</span><br><span class="line">          cpus: &#x27;2&#x27;</span><br><span class="line">          memory: 20M</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+<blockquote class="blockquote-center">
+            <i class="fa fa-quote-left"></i>
+            <p> Sometimes you have to sacrifice everything you love to save everything you love. - Murph</p>
+<p><a target="_blank" rel="noopener" href="https://movie.douban.com/subject/1889243/">Interstellar</a></p>
+
+            <i class="fa fa-quote-right"></i>
+          </blockquote>
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/Docker/" rel="tag"># Docker</a>
+              <a href="/tags/%E5%B9%B6%E5%8F%91/" rel="tag"># 并发</a>
+              <a href="/tags/%E5%A4%9A%E7%BA%BF%E7%A8%8B/" rel="tag"># 多线程</a>
+              <a href="/tags/Rust/" rel="tag"># Rust</a>
+              <a href="/tags/%E5%BC%82%E6%AD%A5/" rel="tag"># 异步</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2021/07/18/vector-with-clickhouse/" rel="prev" title="Vector With ClickHouse">
+      <i class="fa fa-chevron-left"></i> Vector With ClickHouse
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2023/02/02/ShellSort/" rel="next" title="排序-希尔排序">
+      排序-希尔排序 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="gitalk-container"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%B9%B6%E5%8F%91%E6%A8%A1%E5%9E%8B"><span class="nav-number">1.</span> <span class="nav-text">并发模型</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#OS-threads"><span class="nav-number">1.1.</span> <span class="nav-text">OS threads</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Event-driven-programming"><span class="nav-number">1.2.</span> <span class="nav-text">Event-driven programming</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Coroutines"><span class="nav-number">1.3.</span> <span class="nav-text">Coroutines</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#The-actor-model"><span class="nav-number">1.4.</span> <span class="nav-text">The actor model</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Rust%E4%B8%AD%E7%9A%84%E5%BC%82%E6%AD%A5"><span class="nav-number">2.</span> <span class="nav-text">Rust中的异步</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#HTTP-SERVER-%E5%9F%BA%E5%87%86%E6%B5%8B%E8%AF%95"><span class="nav-number">3.</span> <span class="nav-text">HTTP SERVER 基准测试</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#ROUND-1"><span class="nav-number">3.1.</span> <span class="nav-text">ROUND 1</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#ROUND-2"><span class="nav-number">3.2.</span> <span class="nav-text">ROUND 2</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#ROUND-3"><span class="nav-number">3.3.</span> <span class="nav-text">ROUND 3</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#ROUND-4"><span class="nav-number">3.4.</span> <span class="nav-text">ROUND 4</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#ROUND-5"><span class="nav-number">3.5.</span> <span class="nav-text">ROUND 5</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%8F%82%E8%80%83"><span class="nav-number">4.</span> <span class="nav-text">参考</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E9%99%84%E5%BD%95"><span class="nav-number">5.</span> <span class="nav-text">附录</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#docker-compose-yml"><span class="nav-number">5.1.</span> <span class="nav-text">docker-compose.yml</span></a></li></ol></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="Mark"
+      src="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/avatar_what.png">
+  <p class="site-author-name" itemprop="name">Mark</p>
+  <div class="site-description" itemprop="description">Stay Hungry, Stay Foolish.</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">64</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">18</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">28</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://space.bilibili.com/1268283" title="Bilibili → https:&#x2F;&#x2F;space.bilibili.com&#x2F;1268283" rel="noopener" target="_blank"><i class="fas fa-video fa-fw"></i>Bilibili</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://www.youtube.com/channel/UCgo_k4UEkGUNrG-resCDVKw" title="YouTube → https:&#x2F;&#x2F;www.youtube.com&#x2F;channel&#x2F;UCgo_k4UEkGUNrG-resCDVKw" rel="noopener" target="_blank"><i class="fab fa-youtube fa-fw"></i>YouTube</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 2015 – 
+  <span itemprop="copyrightYear">2024</span>
+  <span class="with-love">
+    <i class="fas fa-gamepad"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Mark</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-chart-area"></i>
+    </span>
+    <span title="站点总字数">67k</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+    <span title="站点阅读时长">4:02</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://mist.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a> 强力驱动
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.css">
+
+<script>
+NexT.utils.loadComments(document.querySelector('#gitalk-container'), () => {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.js', () => {
+    var gitalk = new Gitalk({
+      clientID    : '1d971a932df33dd64e19',
+      clientSecret: 'a51b84396586902b536b1b26a917003af50ea152',
+      repo        : 'hexo-comments',
+      owner       : 'dreamming',
+      admin       : ['dreamming'],
+      id          : '9d09811d198fc73d38a0c5c8cbdb5701',
+        language: 'zh-CN',
+      distractionFreeMode: false
+    });
+    gitalk.render('gitalk-container');
+  }, window.Gitalk);
+});
+</script>
+
+</body>
+</html>

@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.4.2">
+
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-N9NJ5HB');</script>
+<!-- End Google Tag Manager -->
+
+<!-- Google Tag Manager (noscript) -->
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-N9NJ5HB"
+height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+<!-- End Google Tag Manager (noscript) -->
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"whathowhy.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"hide","padding":18,"offset":12,"onmobile":true},"copycode":{"enable":true,"show_result":true,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="记录下Java中多线程的使用 线程的生命周期 NEW：线程被创建未启动 RUNNABLE：线程为启动状态，被虚拟机执行或者是等待系统资源中 WAITING：线程调用 Object.wait、Thread.join或LockSupport.park方法，线程进入WAITING状态 TIMED_WAITING：线程调用 Thread.sleep 、Object.wait(10) 、Thread.j">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Java线程基础">
+<meta property="og:url" content="https://whathowhy.com/2018/08/20/JavaThread/index.html">
+<meta property="og:site_name" content="8lovelife&#39;s life">
+<meta property="og:description" content="记录下Java中多线程的使用 线程的生命周期 NEW：线程被创建未启动 RUNNABLE：线程为启动状态，被虚拟机执行或者是等待系统资源中 WAITING：线程调用 Object.wait、Thread.join或LockSupport.park方法，线程进入WAITING状态 TIMED_WAITING：线程调用 Thread.sleep 、Object.wait(10) 、Thread.j">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/photos/22.png">
+<meta property="og:image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/%E5%B9%B6%E5%8F%91/%E7%BA%BF%E7%A8%8B%E7%94%9F%E5%91%BD%E5%91%A8%E6%9C%9F.png">
+<meta property="og:image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/%E5%B9%B6%E5%8F%91/Starvation%20due%20to%20priority.png">
+<meta property="og:image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/%E5%B9%B6%E5%8F%91/Starvation%20due%20to%20synchronized.png">
+<meta property="og:image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/%E5%B9%B6%E5%8F%91/Starvation%20due%20to%20wait.png">
+<meta property="og:image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/%E5%B9%B6%E5%8F%91/Fairness%20Lock.png">
+<meta property="og:image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/%E5%B9%B6%E5%8F%91/Thread%20DeadLock.png">
+<meta property="og:image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/%E5%B9%B6%E5%8F%91/Dead%20Lock.png">
+<meta property="og:image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/%E5%B9%B6%E5%8F%91/Thread%20LiveLock.png">
+<meta property="article:published_time" content="2018-08-20T13:00:26.000Z">
+<meta property="article:modified_time" content="2024-11-24T15:09:32.162Z">
+<meta property="article:author" content="Mark">
+<meta property="article:tag" content="多线程">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/photos/22.png">
+
+<link rel="canonical" href="https://whathowhy.com/2018/08/20/JavaThread/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>Java线程基础 | 8lovelife's life</title>
+  
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-MSKY7FDVPG"></script>
+    <script>
+      if (CONFIG.hostname === location.hostname) {
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-MSKY7FDVPG');
+      }
+    </script>
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">8lovelife's life</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">M&M</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://whathowhy.com/2018/08/20/JavaThread/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/avatar_what.png">
+      <meta itemprop="name" content="Mark">
+      <meta itemprop="description" content="Stay Hungry, Stay Foolish.">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="8lovelife's life">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Java线程基础
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2018-08-20 21:00:26" itemprop="dateCreated datePublished" datetime="2018-08-20T21:00:26+08:00">2018-08-20</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2024-11-24 23:09:32" itemprop="dateModified" datetime="2024-11-24T23:09:32+08:00">2024-11-24</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Java/" itemprop="url" rel="index"><span itemprop="name">Java</span></a>
+                </span>
+            </span>
+
+          <br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="far fa-file-word"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>2.8k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="far fa-clock"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              <span>10 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <img src="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/photos/22.png" class="full-image" />
+
+<p>记录下Java中多线程的使用</p>
+<h1 id="线程的生命周期"><a href="#线程的生命周期" class="headerlink" title="线程的生命周期"></a>线程的生命周期</h1><ol>
+<li>NEW：线程被创建未启动</li>
+<li>RUNNABLE：线程为启动状态，被虚拟机执行或者是等待系统资源中</li>
+<li>WAITING：线程调用 Object.wait、Thread.join或LockSupport.park方法，线程进入WAITING状态</li>
+<li>TIMED_WAITING：线程调用 Thread.sleep 、Object.wait(10) 、Thread.join(10)、LockSupport.parkNanos 或 LockSupport.parkUntil方法 ，线程进入TIMED_WAITING状态</li>
+<li>BLOCKED：线程等待获取锁</li>
+<li>TERMINATED：线程死亡</li>
+</ol>
+<p><img src="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/%E5%B9%B6%E5%8F%91/%E7%BA%BF%E7%A8%8B%E7%94%9F%E5%91%BD%E5%91%A8%E6%9C%9F.png" alt="image"></p>
+<span id="more"></span>
+
+<h2 id="线程的状态"><a href="#线程的状态" class="headerlink" title="线程的状态"></a>线程的状态</h2><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br></pre></td><td class="code"><pre><span class="line">class ThreadStates extends Thread &#123;</span><br><span class="line"></span><br><span class="line">  @Override</span><br><span class="line">  public void run() &#123;</span><br><span class="line"></span><br><span class="line">    try &#123;</span><br><span class="line">      threadCurrentState(&quot;RUNNABLE&quot;, this);</span><br><span class="line">      TimeUnit.SECONDS.sleep(5);</span><br><span class="line">    &#125; catch (InterruptedException e) &#123;</span><br><span class="line">      e.printStackTrace();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  public void entryMonitor() &#123;</span><br><span class="line"></span><br><span class="line">    try &#123;</span><br><span class="line">      synchronized (ThreadStates.class) &#123;</span><br><span class="line">        TimeUnit.SECONDS.sleep(3);</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">    &#125; catch (Exception e) &#123;</span><br><span class="line">      e.printStackTrace();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">  public void threadCurrentState(String name, Thread thread) &#123;</span><br><span class="line">    System.out.println(name + &quot;&#x27;s state is &quot; + thread.getState());</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  public void newRunnableTimedWaitingTerminated() throws InterruptedException &#123;</span><br><span class="line"></span><br><span class="line">    threadCurrentState(&quot;NEW&quot;, this);</span><br><span class="line"></span><br><span class="line">    this.start();</span><br><span class="line"></span><br><span class="line">    TimeUnit.SECONDS.sleep(1);</span><br><span class="line"></span><br><span class="line">    threadCurrentState(&quot;TIMED_WAITING&quot;, this);</span><br><span class="line"></span><br><span class="line">    Runtime.getRuntime().addShutdownHook(new Thread(() -&gt; threadCurrentState(&quot;TERMINATED&quot;, this)));</span><br><span class="line"></span><br><span class="line">    Thread joinT = new Thread(() -&gt; entryMonitor());</span><br><span class="line"></span><br><span class="line">    joinT.start();</span><br><span class="line"></span><br><span class="line">    Thread thread = Thread.currentThread();</span><br><span class="line"></span><br><span class="line">    new Thread(() -&gt; &#123;</span><br><span class="line">      try &#123;</span><br><span class="line"></span><br><span class="line">        Thread blockedT = new Thread(() -&gt; entryMonitor());</span><br><span class="line">        blockedT.start();</span><br><span class="line">        TimeUnit.SECONDS.sleep(1);</span><br><span class="line">        threadCurrentState(&quot;BLOCKED&quot;, blockedT);</span><br><span class="line"></span><br><span class="line">        TimeUnit.SECONDS.sleep(1);</span><br><span class="line">        threadCurrentState(&quot;WAITING&quot;, thread);</span><br><span class="line">      &#125; catch (InterruptedException e) &#123;</span><br><span class="line">        e.printStackTrace();</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;).start();</span><br><span class="line"></span><br><span class="line">    joinT.join();</span><br><span class="line"></span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">try &#123;</span><br><span class="line">  new ThreadStates().newRunnableTimedWaitingTerminated();</span><br><span class="line">&#125; catch (InterruptedException e) &#123;</span><br><span class="line">  e.printStackTrace();</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">// 输出</span><br><span class="line">NEW&#x27;s state is NEW</span><br><span class="line">RUNNABLE&#x27;s state is RUNNABLE</span><br><span class="line">TIMED_WAITING&#x27;s state is TIMED_WAITING</span><br><span class="line">BLOCKED&#x27;s state is BLOCKED</span><br><span class="line">WAITING&#x27;s state is WAITING</span><br><span class="line">TERMINATED&#x27;s state is TERMINATED</span><br><span class="line"></span><br><span class="line">Process finished with exit code 0</span><br><span class="line"></span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+
+
+<h1 id="线程的创建与启动"><a href="#线程的创建与启动" class="headerlink" title="线程的创建与启动"></a>线程的创建与启动</h1><p>下面是几种在Java中运行线程的方式</p>
+<ol>
+<li>继承Thread</li>
+</ol>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">class ThreadExtend extends Thread &#123;</span><br><span class="line"></span><br><span class="line">  public ThreadExtend() &#123;</span><br><span class="line">    super();</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  public ThreadExtend(String name) &#123;</span><br><span class="line">    super(name);</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  @Override</span><br><span class="line">  public void run() &#123;</span><br><span class="line">    System.out.println(&quot;I&#x27;m &quot;+getName()+&quot;, coming from extend&quot;);</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">new ThreadExtend(&quot;ThreadExtend&quot;).start();</span><br></pre></td></tr></table></figure>
+<ol start="2">
+<li>实现Runnable接口</li>
+</ol>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">class ThreadRunnable implements Runnable &#123;</span><br><span class="line"></span><br><span class="line">  private String name;</span><br><span class="line"></span><br><span class="line">  public ThreadRunnable(String name) &#123;</span><br><span class="line">    this.name = name;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  @Override</span><br><span class="line">  public void run() &#123;</span><br><span class="line">    System.out.println(&quot;I&#x27;m &quot;+name+&quot;, coming from runnable&quot;);</span><br><span class="line"></span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">new Thread(new ThreadRunnable(&quot;ThreadRunnable&quot;)).start();</span><br></pre></td></tr></table></figure>
+<ol start="3">
+<li>实现Callable接口</li>
+</ol>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">class ThreadWithCallable implements Callable&lt;String&gt; &#123;</span><br><span class="line"></span><br><span class="line">  @Override</span><br><span class="line">  public String call() &#123;</span><br><span class="line">    return &quot;Thread Callable&quot;;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">ThreadWithCallable threadWithCallable = new ThreadWithCallable();</span><br><span class="line">FutureTask&lt;String&gt; futureTask = new FutureTask(threadWithCallable);</span><br><span class="line">new Thread(futureTask).start();</span><br><span class="line">try &#123;</span><br><span class="line">     System.out.println(futureTask.get());</span><br><span class="line">&#125; catch (InterruptedException e) &#123;</span><br><span class="line">      e.printStackTrace();</span><br><span class="line">&#125; catch (ExecutionException e) &#123;</span><br><span class="line">      e.printStackTrace();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<ol start="4">
+<li>基于线程池</li>
+</ol>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">ExecutorService executorService = Executors.newFixedThreadPool(2);</span><br><span class="line">executorService.submit(new ThreadExtend());</span><br><span class="line">System.out.println(executorService.submit(new ThreadWithCallable()).get());</span><br><span class="line">executorService.shutdown();</span><br></pre></td></tr></table></figure>
+
+<h1 id="线程常用的相关方法"><a href="#线程常用的相关方法" class="headerlink" title="线程常用的相关方法"></a>线程常用的相关方法</h1><h2 id="sleep"><a href="#sleep" class="headerlink" title="sleep"></a>sleep</h2><p>sleep()是线程的方法，此方法会使线程睡眠，sleep()不会释放当前线程已经拥有的监视器。若其他线程线程调用了睡眠线程的interrupt()方法或sleep的时间已到，则线程进入Runnable状态</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">long waitingTime = 10;</span><br><span class="line"></span><br><span class="line">Thread sleepThread = new Thread(() -&gt; &#123;</span><br><span class="line"></span><br><span class="line">    try &#123;</span><br><span class="line">        System.out.println(&quot;I&#x27;m gonna go to bed !&quot;);</span><br><span class="line">        TimeUnit.SECONDS.sleep(waitingTime);</span><br><span class="line">        System.out.println(&quot;I was waken up !&quot;);</span><br><span class="line">    &#125; catch (InterruptedException e) &#123;</span><br><span class="line">        System.out.println(&quot;I was interrupted !&quot;);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">&#125;);</span><br><span class="line"></span><br><span class="line">sleepThread.start();</span><br><span class="line">sleepThread.interrupt();</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+<h2 id="Object-wait-notify-notifyAll"><a href="#Object-wait-notify-notifyAll" class="headerlink" title="Object#wait &amp; notify&#x2F;notifyAll"></a>Object#wait &amp; notify&#x2F;notifyAll</h2><ul>
+<li>wait()是Object类中定义的方法，当线程持有了Object的监视器才可以调用Object的wait()方法，wiat()会释放持有的监视器。假设当前线程获得了对象锁，则当其他线程试图获得此对象锁时，会导致线程阻塞（Blocked）</li>
+</ul>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br></pre></td><td class="code"><pre><span class="line">public class WaitNotifyTest implements Serializable &#123;</span><br><span class="line"></span><br><span class="line">    private List&lt;Integer&gt; queue = new ArrayList&lt;&gt;();</span><br><span class="line">    private int CAPACITY = 5;</span><br><span class="line"></span><br><span class="line">    public static void main(String[] args) &#123;</span><br><span class="line">        WaitNotifyTest waitNotify = new WaitNotifyTest();</span><br><span class="line">        Thread produceT = new Thread(waitNotify.new Produce());</span><br><span class="line">        Thread consumerT = new Thread(waitNotify.new Consumer());</span><br><span class="line">        produceT.start();</span><br><span class="line">        consumerT.start();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    class Produce implements Runnable &#123;</span><br><span class="line">        int count;</span><br><span class="line"></span><br><span class="line">        @Override</span><br><span class="line">        public void run() &#123;</span><br><span class="line">            while (true) &#123;</span><br><span class="line">                try &#123;</span><br><span class="line">                    produce(count++);</span><br><span class="line">                &#125; catch (InterruptedException e) &#123;</span><br><span class="line">                    e.printStackTrace();</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        private void produce(int count) throws InterruptedException &#123;</span><br><span class="line"></span><br><span class="line">            synchronized (queue) &#123;</span><br><span class="line">                if (queue.size() == CAPACITY) &#123;</span><br><span class="line">                    System.out.println(&quot;Queue is Full...&quot;);</span><br><span class="line">                    queue.wait();</span><br><span class="line">                    System.out.println(&quot;Produce wait over !&quot;);</span><br><span class="line">                    return;</span><br><span class="line">                &#125;</span><br><span class="line">                Thread.sleep(1000);</span><br><span class="line">                queue.add(count);</span><br><span class="line">                System.out.println(&quot;Produced :&quot; + count);</span><br><span class="line">                queue.notify();</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    class Consumer implements Runnable &#123;</span><br><span class="line"></span><br><span class="line">        @Override</span><br><span class="line">        public void run() &#123;</span><br><span class="line">            while (true) &#123;</span><br><span class="line">                try &#123;</span><br><span class="line">                    consume();</span><br><span class="line">                &#125; catch (InterruptedException e) &#123;</span><br><span class="line">                    e.printStackTrace();</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        private void consume() throws InterruptedException &#123;</span><br><span class="line">            synchronized (queue) &#123;</span><br><span class="line">                if (queue.isEmpty()) &#123;</span><br><span class="line">                    System.out.println(&quot;Queue is Empty...&quot;);</span><br><span class="line">                    queue.wait();</span><br><span class="line">                    System.out.println(&quot;Consume wait over !&quot;);</span><br><span class="line">                    return;</span><br><span class="line">                &#125;</span><br><span class="line"></span><br><span class="line">                Thread.sleep(1000);</span><br><span class="line">                int i = queue.remove(0);</span><br><span class="line">                System.out.println(&quot;Consumed :&quot; + i);</span><br><span class="line">                queue.notify();</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<ul>
+<li>wait()方法</li>
+</ul>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">public final void wait() throws InterruptedException &#123;</span><br><span class="line">    wait(0); // 是个本地方法</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">public final native void wait(long timeout) throws InterruptedException; </span><br><span class="line">// 其他线程调用notify()/notifyAll()可以唤醒由wait()方法导致waiting的线程（或者wait等待的时间过期）</span><br></pre></td></tr></table></figure>
+
+<h2 id="LockSupport-park-unpark"><a href="#LockSupport-park-unpark" class="headerlink" title="LockSupport#park &amp; unpark"></a>LockSupport#park &amp; unpark</h2><ul>
+<li>park()功能同wait()，只是wait在调用前必须先获得监视器。对于线程的唤醒来说，unpark可以唤醒指定的线程，而notify&#x2F;notifyAll无法唤醒指定的线程</li>
+</ul>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line">class ForWakeUpThread implements Runnable &#123;</span><br><span class="line"></span><br><span class="line">  private Thread waitForWakeUp;</span><br><span class="line"></span><br><span class="line">  public ForWakeUpThread(Thread thread) &#123;</span><br><span class="line">    this.waitForWakeUp = thread;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  @Override</span><br><span class="line">  public void run() &#123;</span><br><span class="line"></span><br><span class="line">    try &#123;</span><br><span class="line">      Thread.sleep(10000);</span><br><span class="line">    &#125; catch (InterruptedException e) &#123;</span><br><span class="line">      e.printStackTrace();</span><br><span class="line">    &#125;</span><br><span class="line">    System.out.println(&quot;Wake Up Main Thread !&quot;);</span><br><span class="line">    LockSupport.unpark(waitForWakeUp);</span><br><span class="line"></span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">ForWakeUpThread wakeUpT = new ForWakeUpThread(Thread.currentThread());</span><br><span class="line">new Thread(wakeUpT).start();</span><br><span class="line">LockSupport.park();</span><br><span class="line">System.out.println(&quot;Main Thread Over !&quot;);</span><br></pre></td></tr></table></figure>
+
+<h2 id="Condition-await-signal"><a href="#Condition-await-signal" class="headerlink" title="Condition#await &amp; signal"></a>Condition#await &amp; signal</h2><ul>
+<li>await()支持多个等待队列，监视器锁只有一个等待队列，当notify&#x2F;notifyAll被调用的时候系统无法知道该唤醒消费者还是生产者。await()与signal()利用了LockSupport#park&#x2F;unpark方法将线程阻塞与唤醒</li>
+</ul>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br></pre></td><td class="code"><pre><span class="line">public class LockConditionTest implements Serializable &#123;</span><br><span class="line"></span><br><span class="line">  private List&lt;Integer&gt; queue = new ArrayList&lt;&gt;();</span><br><span class="line">  private Lock lock = new ReentrantLock();</span><br><span class="line">  private Condition produce = lock.newCondition();</span><br><span class="line">  private Condition consume = lock.newCondition();</span><br><span class="line">  private int CAPACITY = 5;</span><br><span class="line"></span><br><span class="line">  public static void main(String[] args) &#123;</span><br><span class="line">    LockConditionTest waitNotify = new LockConditionTest();</span><br><span class="line">    Thread produceT = new Thread(waitNotify.new Produce());</span><br><span class="line">    Thread consumerT = new Thread(waitNotify.new Consumer());</span><br><span class="line">    produceT.start();</span><br><span class="line">    consumerT.start();</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  class Produce implements Runnable &#123;</span><br><span class="line"></span><br><span class="line">    int count;</span><br><span class="line"></span><br><span class="line">    @Override</span><br><span class="line">    public void run() &#123;</span><br><span class="line">      while (true) &#123;</span><br><span class="line">        try &#123;</span><br><span class="line">          produce(count++);</span><br><span class="line">        &#125; catch (InterruptedException e) &#123;</span><br><span class="line">          e.printStackTrace();</span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    private void produce(int count) throws InterruptedException &#123;</span><br><span class="line"></span><br><span class="line">      try &#123;</span><br><span class="line">        lock.lock();</span><br><span class="line">        if (queue.size() == CAPACITY) &#123;</span><br><span class="line">          System.out.println(&quot;Queue is Full...&quot;);</span><br><span class="line">          produce.await();</span><br><span class="line">          System.out.println(&quot;Produce wait over !&quot;);</span><br><span class="line">          return;</span><br><span class="line">        &#125;</span><br><span class="line">        Thread.sleep(1000);</span><br><span class="line">        queue.add(count);</span><br><span class="line">        System.out.println(&quot;Produced :&quot; + count);</span><br><span class="line">        consume.signal();</span><br><span class="line">      &#125; finally &#123;</span><br><span class="line">        lock.unlock();</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  class Consumer implements Runnable &#123;</span><br><span class="line"></span><br><span class="line">    @Override</span><br><span class="line">    public void run() &#123;</span><br><span class="line">      while (true) &#123;</span><br><span class="line">        try &#123;</span><br><span class="line">          consume();</span><br><span class="line">        &#125; catch (InterruptedException e) &#123;</span><br><span class="line">          e.printStackTrace();</span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    private void consume() throws InterruptedException &#123;</span><br><span class="line"></span><br><span class="line">      try &#123;</span><br><span class="line">        lock.lock();</span><br><span class="line">        if (queue.isEmpty()) &#123;</span><br><span class="line">          System.out.println(&quot;Queue is Empty...&quot;);</span><br><span class="line">          consume.await();</span><br><span class="line">          System.out.println(&quot;Consume wait over !&quot;);</span><br><span class="line">          return;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        Thread.sleep(1000);</span><br><span class="line">        int i = queue.remove(0);</span><br><span class="line">        System.out.println(&quot;Consumed :&quot; + i);</span><br><span class="line">        produce.signal();</span><br><span class="line">      &#125; finally &#123;</span><br><span class="line">        lock.unlock();</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+
+
+<h2 id="join"><a href="#join" class="headerlink" title="join"></a>join</h2><ul>
+<li>join()方法会阻塞调用此方法的线程，当线程执行结束（或者join的时间过期）则等待的线程会继续运行</li>
+</ul>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line">class JoinThreadPartOne implements Runnable &#123;</span><br><span class="line"></span><br><span class="line">  @Override</span><br><span class="line">  public void run() &#123;</span><br><span class="line">  </span><br><span class="line">    try &#123;</span><br><span class="line">      TimeUnit.SECONDS.sleep(10);</span><br><span class="line">      System.out.println(&quot;Thread Part One Is Over !&quot;);</span><br><span class="line">    &#125; catch (InterruptedException e) &#123;</span><br><span class="line">      e.printStackTrace();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">Thread partOneT = new Thread(new JoinThreadPartOne());</span><br><span class="line">partOneT.start();</span><br><span class="line">partOneT.join(); // 阻塞主线程，当partOneT执行结束，主线程将继续执行</span><br><span class="line">System.out.println(&quot;Main Thread Is Over !&quot;);</span><br><span class="line">System.in.read();</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>join方法</li>
+</ul>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br></pre></td><td class="code"><pre><span class="line">public final void join() throws InterruptedException &#123;</span><br><span class="line">    join(0);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">public final synchronized void join(long millis) // 调用此方法需要获取监视器</span><br><span class="line">throws InterruptedException &#123;</span><br><span class="line">    long base = System.currentTimeMillis();</span><br><span class="line">    long now = 0;</span><br><span class="line"></span><br><span class="line">    if (millis &lt; 0) &#123;</span><br><span class="line">        throw new IllegalArgumentException(&quot;timeout value is negative&quot;);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    if (millis == 0) &#123;</span><br><span class="line">        while (isAlive()) &#123;</span><br><span class="line">            wait(0);    // 调用的是wait()方法</span><br><span class="line">        &#125;</span><br><span class="line">    &#125; else &#123;</span><br><span class="line">        while (isAlive()) &#123;</span><br><span class="line">            long delay = millis - now;</span><br><span class="line">            if (delay &lt;= 0) &#123;</span><br><span class="line">                break;</span><br><span class="line">            &#125;</span><br><span class="line">            wait(delay);</span><br><span class="line">            now = System.currentTimeMillis() - base;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+<h2 id="priority"><a href="#priority" class="headerlink" title="priority"></a>priority</h2><p>线程可以设置优先级，优先级较高的线程优先于具有较低优先级的线程执行（并非绝对的优先，由系统尽量保证，所以线程优先级不能作为编码的逻辑控制）。线程优先级因不同的操作系统而有所不同</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br></pre></td><td class="code"><pre><span class="line">class ThreadPriority extends Thread &#123;</span><br><span class="line"></span><br><span class="line">  private int priority;</span><br><span class="line">  private boolean shouldYield;</span><br><span class="line">  private String name;</span><br><span class="line"></span><br><span class="line">  public ThreadPriority(int priority, boolean shouldYield, String name) &#123;</span><br><span class="line">    this.priority = priority;</span><br><span class="line">    setPriority(priority);</span><br><span class="line">    this.shouldYield = shouldYield;</span><br><span class="line">    this.name = name;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  @Override</span><br><span class="line">  public void run() &#123;</span><br><span class="line"></span><br><span class="line">    System.out.println(&quot;Thread &quot; + name + &quot; With &quot; + priority + &quot; Priority Start&quot;);</span><br><span class="line">    try &#123;</span><br><span class="line">      TimeUnit.SECONDS.sleep(5);</span><br><span class="line">    &#125; catch (InterruptedException e) &#123;</span><br><span class="line">      e.printStackTrace();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    if (shouldYield) &#123;</span><br><span class="line">      System.out.println(&quot;Thread &quot; + name + &quot; With &quot; + priority + &quot; Priority Yield&quot;);</span><br><span class="line">      Thread.yield();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    System.out.println(&quot;Thread &quot; + name + &quot; With &quot; + priority + &quot; Priority End&quot;);</span><br><span class="line"></span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">ThreadPriority minPriorityT = new ThreadPriority(Thread.MIN_PRIORITY, false,&quot;A&quot;);</span><br><span class="line">ThreadPriority maxPriorityT = new ThreadPriority(Thread.MAX_PRIORITY, false,&quot;B&quot;);</span><br><span class="line"></span><br><span class="line">minPriorityT.start();</span><br><span class="line">maxPriorityT.start();</span><br><span class="line"></span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+<h2 id="yield"><a href="#yield" class="headerlink" title="yield"></a>yield</h2><p>yield()方法是让出当前线程使用的CPU时间片，也就是当前线程让出的CPU时间片让其他同等优先级的线程使用。让出的意图是否被系统接受（如线程优先级一样）完全看系统心情</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line">ThreadPriority minPriorityT = new ThreadPriority(Thread.MIN_PRIORITY, true,&quot;A&quot;);</span><br><span class="line">ThreadPriority maxPriorityT = new ThreadPriority(Thread.MIN_PRIORITY, false,&quot;B&quot;);</span><br><span class="line"></span><br><span class="line">minPriorityT.start();</span><br><span class="line">maxPriorityT.start();</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+<h2 id="interrupt"><a href="#interrupt" class="headerlink" title="interrupt"></a>interrupt</h2><p>中断线程的执行，由操作系统向线程发送事件信号</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line">class ThreadInterrupt implements Runnable &#123;</span><br><span class="line"></span><br><span class="line">  @Override</span><br><span class="line">  public void run() &#123;</span><br><span class="line"></span><br><span class="line">    for(;;) &#123;</span><br><span class="line"></span><br><span class="line">      boolean isInterrupt = Thread.currentThread().isInterrupted();</span><br><span class="line">      if (isInterrupt) &#123;</span><br><span class="line">        System.out.println(&quot;Current Thread&#x27;s isInterrupt &quot; + isInterrupt);</span><br><span class="line">        return;</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">Thread interruptT = new Thread(new ThreadInterrupt());</span><br><span class="line">interruptT.start();</span><br><span class="line">TimeUnit.SECONDS.sleep(10);</span><br><span class="line">System.out.println(&quot;Interrupt ThreadInterrupt !&quot;);</span><br><span class="line">interruptT.interrupt();</span><br><span class="line">interruptT.join();</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+<h2 id="daemon"><a href="#daemon" class="headerlink" title="daemon"></a>daemon</h2><p>若线程设置为守护线程，则当虚拟机中的所有用户线程结束或虚拟机退出，相应的守护线程随之结束（当用户线程都结束了，守护线程的使命即终止）。在守护线程中创建的线程也是守护线程，在用户线程中创建的是线程也是用户线程，线程池框架会将守护线程转为用户线程。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br></pre></td><td class="code"><pre><span class="line">class DaemonThread implements Runnable &#123;</span><br><span class="line"></span><br><span class="line">  @Override</span><br><span class="line">  public void run() &#123;</span><br><span class="line"></span><br><span class="line">    MemoryMXBean memorymbean = ManagementFactory.getMemoryMXBean();</span><br><span class="line">    MemoryUsage usage = memorymbean.getHeapMemoryUsage();</span><br><span class="line">    for (; ; ) &#123;</span><br><span class="line">      try &#123;</span><br><span class="line">        TimeUnit.SECONDS.sleep(2);</span><br><span class="line">        System.out.println(&quot;INIT HEAP: &quot; + usage.getInit() / 1024 / 1024 + &quot;MB&quot;);</span><br><span class="line">        System.out.println(&quot;MAX HEAP: &quot; + usage.getMax() / 1024 / 1024 + &quot;MB&quot;);</span><br><span class="line">        System.out.println(&quot;USE HEAP: &quot; + usage.getUsed() / 1024 / 1024 + &quot;MB&quot;);</span><br><span class="line"></span><br><span class="line">        System.out.println();</span><br><span class="line"></span><br><span class="line">      &#125; catch (InterruptedException e) &#123;</span><br><span class="line">        e.printStackTrace();</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">class AliveThread implements Runnable &#123;</span><br><span class="line"></span><br><span class="line">  @Override</span><br><span class="line">  public void run() &#123;</span><br><span class="line">    for(;;) &#123;</span><br><span class="line">      try &#123;</span><br><span class="line">        TimeUnit.SECONDS.sleep(2);</span><br><span class="line">        System.out.println(&quot;I&#x27;m alive !&quot;);</span><br><span class="line">      &#125; catch (InterruptedException e) &#123;</span><br><span class="line">        e.printStackTrace();</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">// 1.System.exit(0) 会退出虚拟机，无论当前是否有守护、用户线程运行</span><br><span class="line">Thread daemonT = new Thread(new DaemonThread());</span><br><span class="line">daemonT.setDaemon(true);</span><br><span class="line">Thread aliveT = new Thread(new AliveThread());</span><br><span class="line">daemonT.start();</span><br><span class="line">aliveT.start();</span><br><span class="line">System.out.println(&quot;Main Thread Over !&quot;);</span><br><span class="line">TimeUnit.SECONDS.sleep(5);</span><br><span class="line">System.exit(0); </span><br><span class="line"></span><br><span class="line">// 1.输出</span><br><span class="line">Main Thread Over !</span><br><span class="line">I&#x27;m alive !</span><br><span class="line">INIT HEAP: 64MB</span><br><span class="line">MAX HEAP: 910MB</span><br><span class="line">USE HEAP: 5MB</span><br><span class="line"></span><br><span class="line">I&#x27;m alive !</span><br><span class="line">INIT HEAP: 64MB</span><br><span class="line">MAX HEAP: 910MB</span><br><span class="line">USE HEAP: 5MB</span><br><span class="line"></span><br><span class="line">Process finished with exit code 0</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">// 2.JVM等待所有用户线程执行完成后才会退出</span><br><span class="line">Thread aliveT = new Thread(new AliveThread());</span><br><span class="line">aliveT.start();</span><br><span class="line">System.out.println(&quot;Main Thread Over !&quot;);</span><br><span class="line"></span><br><span class="line">// 2.输出</span><br><span class="line">Main Thread Over !</span><br><span class="line">I&#x27;m alive !</span><br><span class="line">I&#x27;m alive !</span><br><span class="line">I&#x27;m alive !</span><br><span class="line">I&#x27;m alive !</span><br><span class="line">I&#x27;m alive !</span><br><span class="line">I&#x27;m alive !</span><br><span class="line">I&#x27;m alive !（无限执行下去）</span><br><span class="line"></span><br><span class="line">// 3.用户线程都执行完成后，JVM退出</span><br><span class="line">Thread daemonT = new Thread(new DaemonThread());</span><br><span class="line">daemonT.setDaemon(true);</span><br><span class="line">System.out.println(&quot;Main Thread Over !&quot;);</span><br><span class="line"></span><br><span class="line">// 3.输出</span><br><span class="line">INIT HEAP: 64MB</span><br><span class="line">MAX HEAP: 910MB</span><br><span class="line">USE HEAP: 5MB</span><br><span class="line"></span><br><span class="line">INIT HEAP: 64MB</span><br><span class="line">MAX HEAP: 910MB</span><br><span class="line">USE HEAP: 5MB</span><br><span class="line"></span><br><span class="line">Main Thread Over !</span><br><span class="line"></span><br><span class="line">Process finished with exit code 0</span><br><span class="line"></span><br><span class="line">// 4.守护线程一直守护用户线程</span><br><span class="line">Thread daemonT = new Thread(new DaemonThread());</span><br><span class="line">daemonT.setDaemon(true);</span><br><span class="line">Thread aliveT = new Thread(new AliveThread());</span><br><span class="line">daemonT.start();</span><br><span class="line">aliveT.start();</span><br><span class="line">System.out.println(&quot;Main Thread Over !&quot;);</span><br><span class="line"></span><br><span class="line">// 4.输出</span><br><span class="line">Main Thread Over !</span><br><span class="line">I&#x27;m alive !</span><br><span class="line">INIT HEAP: 64MB</span><br><span class="line">MAX HEAP: 910MB</span><br><span class="line">USE HEAP: 6MB</span><br><span class="line"></span><br><span class="line">I&#x27;m alive !</span><br><span class="line">INIT HEAP: 64MB</span><br><span class="line">MAX HEAP: 910MB</span><br><span class="line">USE HEAP: 6MB</span><br><span class="line"></span><br><span class="line">I&#x27;m alive !</span><br><span class="line">INIT HEAP: 64MB</span><br><span class="line">MAX HEAP: 910MB</span><br><span class="line">USE HEAP: 6MB</span><br><span class="line"></span><br><span class="line">I&#x27;m alive !</span><br><span class="line">INIT HEAP: 64MB</span><br><span class="line">MAX HEAP: 910MB</span><br><span class="line">USE HEAP: 6MB（无限执行下去）</span><br></pre></td></tr></table></figure>
+
+<h1 id="多线程可能产生的问题"><a href="#多线程可能产生的问题" class="headerlink" title="多线程可能产生的问题"></a>多线程可能产生的问题</h1><p>活跃性故障</p>
+<h2 id="Thread-Starvation"><a href="#Thread-Starvation" class="headerlink" title="Thread Starvation"></a>Thread Starvation</h2><p>如果一个线程一直得不到共享的资源（为什么其他线程都会得到资源，而我一直不能。。），这个线程就很“饥饿”，即 Thread Starvation。导致线程饥饿的原因：</p>
+<ol>
+<li>线程进入同步方法造成的阻塞等待,可能导致线程饥饿</li>
+<li>高优先级的线程抢走资源，可能导致低优先级的线程饥饿</li>
+<li>调用了wait()方法的线程，notify()不能保证所有线程的wait都终止，可能导致线程饥饿</li>
+</ol>
+<p><img src="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/%E5%B9%B6%E5%8F%91/Starvation%20due%20to%20priority.png" alt="image"><img src="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/%E5%B9%B6%E5%8F%91/Starvation%20due%20to%20synchronized.png" alt="image"><img src="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/%E5%B9%B6%E5%8F%91/Starvation%20due%20to%20wait.png" alt="image"></p>
+<h3 id="公平锁"><a href="#公平锁" class="headerlink" title="公平锁"></a>公平锁</h3><p>公平锁会公平的分配多线程竞争的资源，避免导致线程饥饿</p>
+<p><img src="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/%E5%B9%B6%E5%8F%91/Fairness%20Lock.png" alt="image"></p>
+<h2 id="Thread-Deadlock"><a href="#Thread-Deadlock" class="headerlink" title="Thread Deadlock"></a>Thread Deadlock</h2><p>假设当前有线程A和B，线程A获得资源AA的锁并尝试获得资源BB的锁，而此时线程B已经获得了资源BB的锁并尝试获得资源AA的锁 –&gt;产生死锁，死锁状态下的线程状态为BLOCKED。如同不懂退让的两只山羊过桥,两只羊各先占一半桥，同时又都需要对方的那一半桥</p>
+<p><img src="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/%E5%B9%B6%E5%8F%91/Thread%20DeadLock.png" alt="image"></p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br></pre></td><td class="code"><pre><span class="line">class DeadLockOccur &#123;</span><br><span class="line"></span><br><span class="line">  private Object sourceALock = new Object();</span><br><span class="line"></span><br><span class="line">  private Object sourceBLock = new Object();</span><br><span class="line"></span><br><span class="line">  public void needA_B() &#123;</span><br><span class="line"></span><br><span class="line">    synchronized (sourceALock) &#123;</span><br><span class="line"></span><br><span class="line">      try &#123;</span><br><span class="line">        TimeUnit.SECONDS.sleep(1);</span><br><span class="line"></span><br><span class="line">        synchronized (sourceBLock) &#123;</span><br><span class="line">          TimeUnit.SECONDS.sleep(2);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">      &#125; catch (InterruptedException e) &#123;</span><br><span class="line">        e.printStackTrace();</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">  public void needB_A() &#123;</span><br><span class="line"></span><br><span class="line">    synchronized (sourceBLock) &#123;</span><br><span class="line"></span><br><span class="line">      try &#123;</span><br><span class="line">        TimeUnit.SECONDS.sleep(1);</span><br><span class="line"></span><br><span class="line">        synchronized (sourceALock) &#123;</span><br><span class="line">          TimeUnit.SECONDS.sleep(2);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">      &#125; catch (InterruptedException e) &#123;</span><br><span class="line">        e.printStackTrace();</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">DeadLockOccur deadLock = new DeadLockOccur();</span><br><span class="line">Thread ABT = new Thread(() -&gt; deadLock.needA_B());</span><br><span class="line">Thread BAT = new Thread(() -&gt; deadLock.needB_A());</span><br><span class="line"></span><br><span class="line">ABT.start();</span><br><span class="line">BAT.start();</span><br><span class="line"></span><br><span class="line">TimeUnit.SECONDS.sleep(2);</span><br><span class="line">System.out.println(&quot;ABT will be BLOCKED:&quot; + ABT.getState());</span><br><span class="line">System.out.println(&quot;BAT will be BLOCKED:&quot; + BAT.getState());</span><br><span class="line"></span><br><span class="line">// 输出</span><br><span class="line">ABT will be BLOCKED:BLOCKED</span><br><span class="line">BAT will be BLOCKED:BLOCKED</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+<p><img src="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/%E5%B9%B6%E5%8F%91/Dead%20Lock.png" alt="image"></p>
+<blockquote>
+<p>将上例中所需资源一次性锁定可以解决死锁问题</p>
+</blockquote>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line">private Object sourceABLock = new Object();</span><br><span class="line"></span><br><span class="line">  public void needA_B() &#123;</span><br><span class="line"></span><br><span class="line">    synchronized (sourceABLock) &#123;</span><br><span class="line">      try &#123;</span><br><span class="line">        TimeUnit.SECONDS.sleep(1);</span><br><span class="line">      &#125; catch (InterruptedException e) &#123;</span><br><span class="line">        e.printStackTrace();</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  public void needB_A() &#123;</span><br><span class="line"></span><br><span class="line">    synchronized (sourceABLock) &#123;</span><br><span class="line">      try &#123;</span><br><span class="line">        TimeUnit.SECONDS.sleep(1);</span><br><span class="line">      &#125; catch (InterruptedException e) &#123;</span><br><span class="line">        e.printStackTrace();</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+<h2 id="Thread-Livelock"><a href="#Thread-Livelock" class="headerlink" title="Thread Livelock"></a>Thread Livelock</h2><p>线程的活锁指的是线程间都在“为对方考虑”，对方存活就把资源让给对方，这样互相谦让自己的资源，最后反而谁都得不到资源，活锁状态下的线程状态为RUNNABLE。有没有遇到过这种情况：你走在路上迎面来了个人，你躲让到一边想让对方通过，在这同时对方也躲让到了你躲让的这一边（你们又面对面了），如此反复</p>
+<p><img src="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/%E5%B9%B6%E5%8F%91/Thread%20LiveLock.png" alt="image"></p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br></pre></td><td class="code"><pre><span class="line">class Worker &#123;</span><br><span class="line"></span><br><span class="line">  private String name;</span><br><span class="line">  private boolean active;</span><br><span class="line"></span><br><span class="line">  public Worker(String name, boolean active) &#123;</span><br><span class="line">    this.name = name;</span><br><span class="line">    this.active = active;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">  public synchronized void work(Worker otherWorker) &#123;</span><br><span class="line"></span><br><span class="line">    while (active) &#123;</span><br><span class="line"></span><br><span class="line">      if (otherWorker.active) &#123;</span><br><span class="line">        try &#123;</span><br><span class="line">          TimeUnit.SECONDS.sleep(2);</span><br><span class="line">        &#125; catch (InterruptedException e) &#123;</span><br><span class="line">          e.printStackTrace();</span><br><span class="line">        &#125;</span><br><span class="line">        System.out.println(name + &quot; handover the resource to &quot; + otherWorker.name);</span><br><span class="line">        continue;</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      System.out.println(name + &quot; working on the resource&quot;);</span><br><span class="line">      active = false;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">Worker w1 = new Worker(&quot;Work1&quot;, true);</span><br><span class="line">Worker w2 = new Worker(&quot;Work2&quot;, true);</span><br><span class="line"></span><br><span class="line">Thread w1T = new Thread(() -&gt; w1.work(w2));</span><br><span class="line">Thread w2T = new Thread(() -&gt; w2.work(w1));</span><br><span class="line"></span><br><span class="line">w1T.start();</span><br><span class="line">w2T.start();</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">// 输出</span><br><span class="line">Work1 handover the resource to Work2</span><br><span class="line">Work2 handover the resource to Work1</span><br><span class="line">Work1 handover the resource to Work2</span><br><span class="line">Work2 handover the resource to Work1</span><br><span class="line">Work1 handover the resource to Work2</span><br><span class="line">Work2 handover the resource to Work1（无限执行下去）</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>资源顺序的执行可以避免上述的活锁</p>
+</blockquote>
+<blockquote class="blockquote-center">
+            <i class="fa fa-quote-left"></i>
+            <p> What is the weight of a soul? How much does a heart weigh? - Joan Clarke</p>
+<p><a target="_blank" rel="noopener" href="https://movie.douban.com/subject/10463953/">The Imitation Game</a></p>
+
+            <i class="fa fa-quote-right"></i>
+          </blockquote>
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/%E5%A4%9A%E7%BA%BF%E7%A8%8B/" rel="tag"># 多线程</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2018/08/18/ConcurrencyThreads/" rel="prev" title="并发与多线程">
+      <i class="fa fa-chevron-left"></i> 并发与多线程
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2018/09/07/mutex/" rel="next" title="Mutex">
+      Mutex <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="gitalk-container"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E7%BA%BF%E7%A8%8B%E7%9A%84%E7%94%9F%E5%91%BD%E5%91%A8%E6%9C%9F"><span class="nav-number">1.</span> <span class="nav-text">线程的生命周期</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%BA%BF%E7%A8%8B%E7%9A%84%E7%8A%B6%E6%80%81"><span class="nav-number">1.1.</span> <span class="nav-text">线程的状态</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E7%BA%BF%E7%A8%8B%E7%9A%84%E5%88%9B%E5%BB%BA%E4%B8%8E%E5%90%AF%E5%8A%A8"><span class="nav-number">2.</span> <span class="nav-text">线程的创建与启动</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E7%BA%BF%E7%A8%8B%E5%B8%B8%E7%94%A8%E7%9A%84%E7%9B%B8%E5%85%B3%E6%96%B9%E6%B3%95"><span class="nav-number">3.</span> <span class="nav-text">线程常用的相关方法</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#sleep"><span class="nav-number">3.1.</span> <span class="nav-text">sleep</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Object-wait-notify-notifyAll"><span class="nav-number">3.2.</span> <span class="nav-text">Object#wait &amp; notify&#x2F;notifyAll</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#LockSupport-park-unpark"><span class="nav-number">3.3.</span> <span class="nav-text">LockSupport#park &amp; unpark</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Condition-await-signal"><span class="nav-number">3.4.</span> <span class="nav-text">Condition#await &amp; signal</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#join"><span class="nav-number">3.5.</span> <span class="nav-text">join</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#priority"><span class="nav-number">3.6.</span> <span class="nav-text">priority</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#yield"><span class="nav-number">3.7.</span> <span class="nav-text">yield</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#interrupt"><span class="nav-number">3.8.</span> <span class="nav-text">interrupt</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#daemon"><span class="nav-number">3.9.</span> <span class="nav-text">daemon</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%A4%9A%E7%BA%BF%E7%A8%8B%E5%8F%AF%E8%83%BD%E4%BA%A7%E7%94%9F%E7%9A%84%E9%97%AE%E9%A2%98"><span class="nav-number">4.</span> <span class="nav-text">多线程可能产生的问题</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#Thread-Starvation"><span class="nav-number">4.1.</span> <span class="nav-text">Thread Starvation</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%85%AC%E5%B9%B3%E9%94%81"><span class="nav-number">4.1.1.</span> <span class="nav-text">公平锁</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Thread-Deadlock"><span class="nav-number">4.2.</span> <span class="nav-text">Thread Deadlock</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Thread-Livelock"><span class="nav-number">4.3.</span> <span class="nav-text">Thread Livelock</span></a></li></ol></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="Mark"
+      src="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/avatar_what.png">
+  <p class="site-author-name" itemprop="name">Mark</p>
+  <div class="site-description" itemprop="description">Stay Hungry, Stay Foolish.</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">64</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">18</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">28</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://space.bilibili.com/1268283" title="Bilibili → https:&#x2F;&#x2F;space.bilibili.com&#x2F;1268283" rel="noopener" target="_blank"><i class="fas fa-video fa-fw"></i>Bilibili</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://www.youtube.com/channel/UCgo_k4UEkGUNrG-resCDVKw" title="YouTube → https:&#x2F;&#x2F;www.youtube.com&#x2F;channel&#x2F;UCgo_k4UEkGUNrG-resCDVKw" rel="noopener" target="_blank"><i class="fab fa-youtube fa-fw"></i>YouTube</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 2015 – 
+  <span itemprop="copyrightYear">2024</span>
+  <span class="with-love">
+    <i class="fas fa-gamepad"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Mark</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-chart-area"></i>
+    </span>
+    <span title="站点总字数">67k</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+    <span title="站点阅读时长">4:02</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://mist.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a> 强力驱动
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.css">
+
+<script>
+NexT.utils.loadComments(document.querySelector('#gitalk-container'), () => {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.js', () => {
+    var gitalk = new Gitalk({
+      clientID    : '1d971a932df33dd64e19',
+      clientSecret: 'a51b84396586902b536b1b26a917003af50ea152',
+      repo        : 'hexo-comments',
+      owner       : 'dreamming',
+      admin       : ['dreamming'],
+      id          : '97c7ba5784992cd16cdeee96385031da',
+        language: 'zh-CN',
+      distractionFreeMode: false
+    });
+    gitalk.render('gitalk-container');
+  }, window.Gitalk);
+});
+</script>
+
+</body>
+</html>

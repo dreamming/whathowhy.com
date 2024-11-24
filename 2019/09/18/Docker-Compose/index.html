@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.4.2">
+
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-N9NJ5HB');</script>
+<!-- End Google Tag Manager -->
+
+<!-- Google Tag Manager (noscript) -->
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-N9NJ5HB"
+height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+<!-- End Google Tag Manager (noscript) -->
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"whathowhy.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"hide","padding":18,"offset":12,"onmobile":true},"copycode":{"enable":true,"show_result":true,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="WHATDocker Compose是用Python编写的工具，并不包含在Docker Engine安装包中。Docker Compose用于解析YML文件并运行YML中定义的容器服务。Docker Compose命令通过调用Docker API完成多容器的创建启动，使用Docker Compose需要自行安装 Docker Compose VS Docker Stack docker sta">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Docker Compose">
+<meta property="og:url" content="https://whathowhy.com/2019/09/18/Docker-Compose/index.html">
+<meta property="og:site_name" content="8lovelife&#39;s life">
+<meta property="og:description" content="WHATDocker Compose是用Python编写的工具，并不包含在Docker Engine安装包中。Docker Compose用于解析YML文件并运行YML中定义的容器服务。Docker Compose命令通过调用Docker API完成多容器的创建启动，使用Docker Compose需要自行安装 Docker Compose VS Docker Stack docker sta">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/photos/12.png">
+<meta property="og:image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/Docker/docker-compose.png">
+<meta property="article:published_time" content="2019-09-18T04:49:18.000Z">
+<meta property="article:modified_time" content="2024-11-24T15:09:32.162Z">
+<meta property="article:author" content="Mark">
+<meta property="article:tag" content="Docker">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/photos/12.png">
+
+<link rel="canonical" href="https://whathowhy.com/2019/09/18/Docker-Compose/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>Docker Compose | 8lovelife's life</title>
+  
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-MSKY7FDVPG"></script>
+    <script>
+      if (CONFIG.hostname === location.hostname) {
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-MSKY7FDVPG');
+      }
+    </script>
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">8lovelife's life</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">M&M</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://whathowhy.com/2019/09/18/Docker-Compose/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/avatar_what.png">
+      <meta itemprop="name" content="Mark">
+      <meta itemprop="description" content="Stay Hungry, Stay Foolish.">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="8lovelife's life">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Docker Compose
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2019-09-18 12:49:18" itemprop="dateCreated datePublished" datetime="2019-09-18T12:49:18+08:00">2019-09-18</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2024-11-24 23:09:32" itemprop="dateModified" datetime="2024-11-24T23:09:32+08:00">2024-11-24</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Docker/" itemprop="url" rel="index"><span itemprop="name">Docker</span></a>
+                </span>
+            </span>
+
+          <br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="far fa-file-word"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>694</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="far fa-clock"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              <span>3 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <img src="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/photos/12.png" class="full-image" />
+
+<h1 id="WHAT"><a href="#WHAT" class="headerlink" title="WHAT"></a>WHAT</h1><p>Docker Compose是用Python编写的工具，并不包含在Docker Engine安装包中。Docker Compose用于解析YML文件并运行YML中定义的容器服务。Docker Compose命令通过调用Docker API完成多容器的创建启动，使用Docker Compose需要自行安装</p>
+<h2 id="Docker-Compose-VS-Docker-Stack"><a href="#Docker-Compose-VS-Docker-Stack" class="headerlink" title="Docker Compose VS Docker Stack"></a>Docker Compose VS Docker Stack</h2><ul>
+<li>docker stack 包含在 swarm mode中，swarm mode 已经被集成到Docker Engine中，由GO语言编写。docker compose 需要自行安装，由Python编写</li>
+<li>docker stack 只支持 <strong>version &gt;&#x3D; 3</strong> 的YML定义且部分命令无法生效如  <strong>build</strong>。docker compose 对YML的不同version处理都没有问题</li>
+<li>docker stack 可以将服务分发到不同的主机上，docker compose 只能将服务分发到同一台主机上</li>
+</ul>
+<span id="more"></span>
+
+<h1 id="WHY"><a href="#WHY" class="headerlink" title="WHY"></a>WHY</h1><p>为什么要使用Docker Compose ? </p>
+<h2 id="服务发布"><a href="#服务发布" class="headerlink" title="服务发布"></a>服务发布</h2><p>以下是需要容器化的服务</p>
+<ul>
+<li>product-service 商品服务</li>
+<li>shopping-service 商店服务，两套界面</li>
+<li>redis-service 数据缓存</li>
+<li>front-balance 商店服务负载</li>
+</ul>
+<p><img src="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/Docker/docker-compose.png" alt="image"></p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">BEFORE COMPOSE :</span><br><span class="line"></span><br><span class="line">docker run -itd --name redis-service --network=backend -p 16379:6379 redis</span><br><span class="line">docker run -itd --name product-service --network=backend -p 15000:5000 8lovelife/product:latest</span><br><span class="line">docker network connect frontend product-service</span><br><span class="line">docker run -itd --name shopping-service-blue --network=frontend -p 28080:80 8lovelife/shopping:blue</span><br><span class="line">docker run -itd --name shopping-service-red --network=frontend -p 18080:80 8lovelife/shopping:red</span><br><span class="line">docker run -itd --name front-balance --network=frontend -p 80:80 8lovelife/frontbalance:latest</span><br><span class="line"></span><br><span class="line">AFTER COMPOSE :</span><br><span class="line"></span><br><span class="line">docker-compose -f docker-compose-product.yml up -d</span><br><span class="line"></span><br><span class="line"></span><br></pre></td></tr></table></figure>
+<h1 id="HOW"><a href="#HOW" class="headerlink" title="HOW"></a>HOW</h1><p>如何使用Docker Compose ?</p>
+<h2 id="服务拆分"><a href="#服务拆分" class="headerlink" title="服务拆分"></a>服务拆分</h2><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line">SHOPPING Dockerfile:</span><br><span class="line"></span><br><span class="line">FROM node:11.1.0-alpine as build</span><br><span class="line">WORKDIR /app</span><br><span class="line">COPY package*.json /app/</span><br><span class="line">RUN npm install</span><br><span class="line">COPY ./ /app/</span><br><span class="line">RUN npm run build</span><br><span class="line"></span><br><span class="line">FROM nginx:1.17.3-alpine</span><br><span class="line">COPY --from=build /app/build /usr/share/nginx/html</span><br><span class="line">COPY --from=build /app/nginx.conf /etc/nginx/nginx.conf</span><br><span class="line">EXPOSE 80</span><br><span class="line">CMD [&quot;nginx&quot;, &quot;-g&quot;, &quot;daemon off;&quot;]</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">PRODUCT Dockerfile:</span><br><span class="line"></span><br><span class="line">FROM maven:3-jdk-8 as build</span><br><span class="line">RUN mkdir -p /build</span><br><span class="line">WORKDIR /build</span><br><span class="line">COPY pom.xml /build</span><br><span class="line">RUN mvn -B dependency:resolve dependency:resolve-plugins</span><br><span class="line">COPY src /build/src</span><br><span class="line">RUN mvn package -Dmaven.test.skip=true</span><br><span class="line"></span><br><span class="line">FROM openjdk:8-jdk-alpine as runtime</span><br><span class="line">EXPOSE 5000</span><br><span class="line">ENV APP_HOME /app</span><br><span class="line">RUN mkdir $APP_HOME</span><br><span class="line">WORKDIR $APP_HOME</span><br><span class="line">COPY --from=build /build/target/*.jar app.jar</span><br><span class="line">ENTRYPOINT [ &quot;sh&quot;, &quot;-c&quot;, &quot;java $JAVA_OPTS -Djava.security.egd=file:/dev/./urandom -jar app.jar&quot; ]</span><br><span class="line"></span><br><span class="line">。。。</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+<h2 id="YML定义"><a href="#YML定义" class="headerlink" title="YML定义"></a>YML定义</h2><p>本文事例使用的docker-compose-product.yml文件内容如下</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br></pre></td><td class="code"><pre><span class="line">version: &quot;3&quot;</span><br><span class="line"></span><br><span class="line">services: </span><br><span class="line"></span><br><span class="line">  product-service:</span><br><span class="line">    image: &quot;8lovelife/product:latest&quot;</span><br><span class="line">    ports: </span><br><span class="line">      - &quot;15000:5000&quot;</span><br><span class="line">    networks: </span><br><span class="line">      - frontend</span><br><span class="line">      - backend</span><br><span class="line">    environment: </span><br><span class="line">      - REDIS_HOST=redis-service</span><br><span class="line">      - REDIS_PORT=6379</span><br><span class="line">  </span><br><span class="line">  shopping-service-red:</span><br><span class="line">    image: &quot;8lovelife/shopping:red&quot;</span><br><span class="line">    ports: </span><br><span class="line">      - &quot;18080:80&quot;</span><br><span class="line">    networks: </span><br><span class="line">      - frontend</span><br><span class="line"></span><br><span class="line">  shopping-service-blue:</span><br><span class="line">    image: &quot;8lovelife/shopping:blue&quot;</span><br><span class="line">    ports: </span><br><span class="line">      - &quot;28080:80&quot;</span><br><span class="line">    networks: </span><br><span class="line">      - frontend</span><br><span class="line"></span><br><span class="line">  redis-service:</span><br><span class="line">    image: &quot;8lovelife/redis:products&quot;</span><br><span class="line">    ports: </span><br><span class="line">      - &quot;16379:6379&quot;</span><br><span class="line">    volumes: </span><br><span class="line">      - redis_data:/data</span><br><span class="line">    networks: </span><br><span class="line">      - &quot;backend&quot;</span><br><span class="line">  </span><br><span class="line">  front-balance:</span><br><span class="line">    image: &quot;8lovelife/frontbalance:latest&quot;</span><br><span class="line">    ports: </span><br><span class="line">      - &quot;80:80&quot;</span><br><span class="line">    networks: </span><br><span class="line">      - &quot;frontend&quot;</span><br><span class="line"></span><br><span class="line">networks:</span><br><span class="line">  frontend: &#123;&#125;</span><br><span class="line">  backend: &#123;&#125;</span><br><span class="line"></span><br><span class="line">volumes: </span><br><span class="line">  redis_data: &#123;&#125;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+<h3 id="构建或拉取镜像"><a href="#构建或拉取镜像" class="headerlink" title="构建或拉取镜像"></a>构建或拉取镜像</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"># 绝对路径</span><br><span class="line">build: .</span><br><span class="line"></span><br><span class="line"># 相对路径</span><br><span class="line">build: ../path/to/app/</span><br><span class="line"></span><br><span class="line"># Git仓库</span><br><span class="line">build: https://url.git</span><br><span class="line"></span><br><span class="line"># 指定分支的Git仓库 </span><br><span class="line">build: https://url.git#develop</span><br><span class="line"></span><br><span class="line"># 含access_token的Git仓库链接</span><br><span class="line">build: https://&lt;ACCESS_TOKEN&gt;:@github.com/demo.git</span><br></pre></td></tr></table></figure>
+
+<h3 id="配置环境变量"><a href="#配置环境变量" class="headerlink" title="配置环境变量"></a>配置环境变量</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">product-service:</span><br><span class="line">  image: &quot;8lovelife/product:latest&quot;</span><br><span class="line">  environment: </span><br><span class="line">    - REDIS_HOST=redis-service</span><br><span class="line">    - REDIS_PORT=6379</span><br></pre></td></tr></table></figure>
+
+<h3 id="配置网络"><a href="#配置网络" class="headerlink" title="配置网络"></a>配置网络</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">product-service:</span><br><span class="line">  image: &quot;8lovelife/product:latest&quot;</span><br><span class="line">  ports: </span><br><span class="line">    - &quot;15000:5000&quot;</span><br><span class="line">  networks: </span><br><span class="line">    - frontend</span><br><span class="line">    - backend</span><br><span class="line">    </span><br><span class="line">networks:</span><br><span class="line">  frontend: &#123;&#125;</span><br><span class="line">  backend: &#123;&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="配置数据卷"><a href="#配置数据卷" class="headerlink" title="配置数据卷"></a>配置数据卷</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">redis-service:</span><br><span class="line">  image: &quot;redis:latest&quot;</span><br><span class="line">  ports: </span><br><span class="line">    - &quot;16379:6379&quot;</span><br><span class="line">  volumes: </span><br><span class="line">    - redis_data:/data</span><br><span class="line">  networks: </span><br><span class="line">    - &quot;backend&quot;</span><br><span class="line">    </span><br><span class="line">volumes: </span><br><span class="line">  redis_data: &#123;&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="构建运行"><a href="#构建运行" class="headerlink" title="构建运行"></a>构建运行</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">docker-compose -f docker-compose-product.yml up -d</span><br><span class="line"></span><br><span class="line">docker-compose --help compose命令帮助</span><br></pre></td></tr></table></figure>
+
+<blockquote class="blockquote-center">
+            <i class="fa fa-quote-left"></i>
+            <p> If you can’t fix it, you gotta stand it. - Jack</p>
+<p><a target="_blank" rel="noopener" href="https://movie.douban.com/subject/3541415/">Inception</a></p>
+
+            <i class="fa fa-quote-right"></i>
+          </blockquote>
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/Docker/" rel="tag"># Docker</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2019/07/25/SpringRetryable/" rel="prev" title="Spring中的@Retryable">
+      <i class="fa fa-chevron-left"></i> Spring中的@Retryable
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2019/10/13/DockerContainer/" rel="next" title="Docker容器">
+      Docker容器 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="gitalk-container"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#WHAT"><span class="nav-number">1.</span> <span class="nav-text">WHAT</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#Docker-Compose-VS-Docker-Stack"><span class="nav-number">1.1.</span> <span class="nav-text">Docker Compose VS Docker Stack</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#WHY"><span class="nav-number">2.</span> <span class="nav-text">WHY</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%9C%8D%E5%8A%A1%E5%8F%91%E5%B8%83"><span class="nav-number">2.1.</span> <span class="nav-text">服务发布</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#HOW"><span class="nav-number">3.</span> <span class="nav-text">HOW</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%9C%8D%E5%8A%A1%E6%8B%86%E5%88%86"><span class="nav-number">3.1.</span> <span class="nav-text">服务拆分</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#YML%E5%AE%9A%E4%B9%89"><span class="nav-number">3.2.</span> <span class="nav-text">YML定义</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%9E%84%E5%BB%BA%E6%88%96%E6%8B%89%E5%8F%96%E9%95%9C%E5%83%8F"><span class="nav-number">3.2.1.</span> <span class="nav-text">构建或拉取镜像</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E9%85%8D%E7%BD%AE%E7%8E%AF%E5%A2%83%E5%8F%98%E9%87%8F"><span class="nav-number">3.2.2.</span> <span class="nav-text">配置环境变量</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E9%85%8D%E7%BD%AE%E7%BD%91%E7%BB%9C"><span class="nav-number">3.2.3.</span> <span class="nav-text">配置网络</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E9%85%8D%E7%BD%AE%E6%95%B0%E6%8D%AE%E5%8D%B7"><span class="nav-number">3.2.4.</span> <span class="nav-text">配置数据卷</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%9E%84%E5%BB%BA%E8%BF%90%E8%A1%8C"><span class="nav-number">3.2.5.</span> <span class="nav-text">构建运行</span></a></li></ol></li></ol></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="Mark"
+      src="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/avatar_what.png">
+  <p class="site-author-name" itemprop="name">Mark</p>
+  <div class="site-description" itemprop="description">Stay Hungry, Stay Foolish.</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">64</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">18</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">28</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://space.bilibili.com/1268283" title="Bilibili → https:&#x2F;&#x2F;space.bilibili.com&#x2F;1268283" rel="noopener" target="_blank"><i class="fas fa-video fa-fw"></i>Bilibili</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://www.youtube.com/channel/UCgo_k4UEkGUNrG-resCDVKw" title="YouTube → https:&#x2F;&#x2F;www.youtube.com&#x2F;channel&#x2F;UCgo_k4UEkGUNrG-resCDVKw" rel="noopener" target="_blank"><i class="fab fa-youtube fa-fw"></i>YouTube</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 2015 – 
+  <span itemprop="copyrightYear">2024</span>
+  <span class="with-love">
+    <i class="fas fa-gamepad"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Mark</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-chart-area"></i>
+    </span>
+    <span title="站点总字数">67k</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+    <span title="站点阅读时长">4:02</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://mist.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a> 强力驱动
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.css">
+
+<script>
+NexT.utils.loadComments(document.querySelector('#gitalk-container'), () => {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.js', () => {
+    var gitalk = new Gitalk({
+      clientID    : '1d971a932df33dd64e19',
+      clientSecret: 'a51b84396586902b536b1b26a917003af50ea152',
+      repo        : 'hexo-comments',
+      owner       : 'dreamming',
+      admin       : ['dreamming'],
+      id          : 'd09c6989f5de49ed46f66679d134ee3b',
+        language: 'zh-CN',
+      distractionFreeMode: false
+    });
+    gitalk.render('gitalk-container');
+  }, window.Gitalk);
+});
+</script>
+
+</body>
+</html>

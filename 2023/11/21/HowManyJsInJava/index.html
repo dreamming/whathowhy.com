@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.4.2">
+
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-N9NJ5HB');</script>
+<!-- End Google Tag Manager -->
+
+<!-- Google Tag Manager (noscript) -->
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-N9NJ5HB"
+height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+<!-- End Google Tag Manager (noscript) -->
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"whathowhy.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"hide","padding":18,"offset":12,"onmobile":true},"copycode":{"enable":true,"show_result":true,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="So many !写 Java 程序或者了解过 Java 语言的朋友，可能经常会听到 JSR、JDK、J2EE… 等等 J 开头的缩写词，这些缩写有时候确实会让人迷糊，而且因为历史原因，这些词的含义也在不停变化，可能也会更加难以理解。这篇博客将记录这些缩写词的含义">
+<meta property="og:type" content="article">
+<meta property="og:title" content="How Many J In Java">
+<meta property="og:url" content="https://whathowhy.com/2023/11/21/HowManyJsInJava/index.html">
+<meta property="og:site_name" content="8lovelife&#39;s life">
+<meta property="og:description" content="So many !写 Java 程序或者了解过 Java 语言的朋友，可能经常会听到 JSR、JDK、J2EE… 等等 J 开头的缩写词，这些缩写有时候确实会让人迷糊，而且因为历史原因，这些词的含义也在不停变化，可能也会更加难以理解。这篇博客将记录这些缩写词的含义">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/blogs/Jinjava/outline.svg">
+<meta property="og:image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/blogs/Jinjava/jdk.svg">
+<meta property="og:image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/blogs/Jinjava/jls.svg">
+<meta property="og:image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/blogs/Jinjava/jre.svg">
+<meta property="og:image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/blogs/Jinjava/jvms.svg">
+<meta property="og:image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/blogs/Jinjava/jsr.svg">
+<meta property="og:image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/blogs/Jinjava/jcp.svg">
+<meta property="og:image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/blogs/Jinjava/j2se.svg">
+<meta property="og:image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/blogs/Jinjava/j2ee.svg">
+<meta property="article:published_time" content="2023-11-21T15:00:00.000Z">
+<meta property="article:modified_time" content="2024-11-24T15:09:32.162Z">
+<meta property="article:author" content="Mark">
+<meta property="article:tag" content="Java">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/blogs/Jinjava/outline.svg">
+
+<link rel="canonical" href="https://whathowhy.com/2023/11/21/HowManyJsInJava/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>How Many J In Java | 8lovelife's life</title>
+  
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-MSKY7FDVPG"></script>
+    <script>
+      if (CONFIG.hostname === location.hostname) {
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-MSKY7FDVPG');
+      }
+    </script>
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">8lovelife's life</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">M&M</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://whathowhy.com/2023/11/21/HowManyJsInJava/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/avatar_what.png">
+      <meta itemprop="name" content="Mark">
+      <meta itemprop="description" content="Stay Hungry, Stay Foolish.">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="8lovelife's life">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          How Many J In Java
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2023-11-21 23:00:00" itemprop="dateCreated datePublished" datetime="2023-11-21T23:00:00+08:00">2023-11-21</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2024-11-24 23:09:32" itemprop="dateModified" datetime="2024-11-24T23:09:32+08:00">2024-11-24</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Java/" itemprop="url" rel="index"><span itemprop="name">Java</span></a>
+                </span>
+            </span>
+
+          <br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="far fa-file-word"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>504</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="far fa-clock"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              <span>2 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <img src="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/blogs/Jinjava/outline.svg" class="full-image">
+
+<p>So many !<br>写 Java 程序或者了解过 Java 语言的朋友，可能经常会听到 JSR、JDK、J2EE… 等等 J 开头的缩写词，这些缩写有时候确实会让人迷糊，而且因为历史原因，这些词的含义也在不停变化，可能也会更加难以理解。这篇博客将记录这些缩写词的含义</p>
+<span id="more"></span>
+
+<h1 id="JDK"><a href="#JDK" class="headerlink" title="JDK"></a>JDK</h1><p>JDK 全称 Java Development Kit，是由 Oracle 公司发行的 Java 开发工具，它实现了 JLS (Java Language Specification) 和 JVMS (Java Virtual Machine Specification)，JDK 提供了 SE (Standard Edition) 的 Java API，其中包括 javac、jar、jps 等一些工具</p>
+<p><img src="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/blogs/Jinjava/jdk.svg" alt="image"></p>
+<h1 id="JLS"><a href="#JLS" class="headerlink" title="JLS"></a>JLS</h1><p>JLS 全称 Java Language Specification，规定了一些 Java 语言的语法和语义</p>
+<p><img src="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/blogs/Jinjava/jls.svg" alt="image"></p>
+<h1 id="JRE"><a href="#JRE" class="headerlink" title="JRE"></a>JRE</h1><p>JRE 全称 Java Runtime Environment，Java 的运行环境中包含 JVM 以及一些常用工具包，如：JDBC、并发包等</p>
+<p><img src="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/blogs/Jinjava/jre.svg" alt="image"></p>
+<h1 id="JVMS"><a href="#JVMS" class="headerlink" title="JVMS"></a>JVMS</h1><p>JVMS 全称 Java Virtual Machine Specification，规定了一些实现 Java 虚拟机的规范，如：Class 文件格式、JVM 指令集、线程与内存的交互等，常见的 JVMS 实现有 HotSpot、JRockit 等</p>
+<p><img src="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/blogs/Jinjava/jvms.svg" alt="image"></p>
+<h1 id="JSR"><a href="#JSR" class="headerlink" title="JSR"></a>JSR</h1><p>JSR 全称 Java Specification Request，是 Java 平台拟定的最终技术规范请求，用于向 JCP 发起新增技术规范的请求描述，如 JSR 51、JSR 166 等</p>
+<p><img src="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/blogs/Jinjava/jsr.svg" alt="image"></p>
+<h1 id="JCP"><a href="#JCP" class="headerlink" title="JCP"></a>JCP</h1><p>JCP 全称 Java Community Process，新的 Java 技术规范在此机制下进行开发，涉及 JSR 的使用</p>
+<p><img src="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/blogs/Jinjava/jcp.svg" alt="image"></p>
+<h1 id="J2SE-VS-Java-SE"><a href="#J2SE-VS-Java-SE" class="headerlink" title="J2SE VS Java SE"></a>J2SE VS Java SE</h1><p>J2SE 全称 Java 2 Platform, Standard Edition， 是众多 Java 平台中的标准版，后被更名为 Java SE</p>
+<p><img src="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/blogs/Jinjava/j2se.svg" alt="image"></p>
+<h1 id="J2EE-VS-Java-EE-VS-Jakarta-EE"><a href="#J2EE-VS-Java-EE-VS-Jakarta-EE" class="headerlink" title="J2EE VS Java EE VS Jakarta EE"></a>J2EE VS Java EE VS Jakarta EE</h1><p>J2EE 全称 Java 2 Platform, Enterprise Edition，是众多 Java 平台中的企业版，是对 Java SE 的扩展，常见的企业技术标准有：Servlet、WebServices 等，后 Oracle 将 Java EE 交给 Eclipse Foundation，由于 Java 商标问题，Java EE 改名为 Jakarta EE</p>
+<p><img src="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/blogs/Jinjava/j2ee.svg" alt="image"></p>
+<h1 id="Other-Java-Platform"><a href="#Other-Java-Platform" class="headerlink" title="Other Java Platform"></a>Other Java Platform</h1><p>Java 其他一些平台</p>
+<ul>
+<li>Java Card 用于开发嵌入式设备</li>
+<li>Java ME 即 Java Platform, Micro Edition，用于开发手机、机顶盒、微控制器等</li>
+<li>JavaFX 用于构建客户端应用程序</li>
+</ul>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/Java/" rel="tag"># Java</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2023/11/05/Jdbc/" rel="prev" title="Java Database Connectivity">
+      <i class="fa fa-chevron-left"></i> Java Database Connectivity
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2024/05/01/SpringOrikaCoFu.md/" rel="next" title="Orika ClassLoader">
+      Orika ClassLoader <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="gitalk-container"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#JDK"><span class="nav-number">1.</span> <span class="nav-text">JDK</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#JLS"><span class="nav-number">2.</span> <span class="nav-text">JLS</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#JRE"><span class="nav-number">3.</span> <span class="nav-text">JRE</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#JVMS"><span class="nav-number">4.</span> <span class="nav-text">JVMS</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#JSR"><span class="nav-number">5.</span> <span class="nav-text">JSR</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#JCP"><span class="nav-number">6.</span> <span class="nav-text">JCP</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#J2SE-VS-Java-SE"><span class="nav-number">7.</span> <span class="nav-text">J2SE VS Java SE</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#J2EE-VS-Java-EE-VS-Jakarta-EE"><span class="nav-number">8.</span> <span class="nav-text">J2EE VS Java EE VS Jakarta EE</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Other-Java-Platform"><span class="nav-number">9.</span> <span class="nav-text">Other Java Platform</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="Mark"
+      src="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/avatar_what.png">
+  <p class="site-author-name" itemprop="name">Mark</p>
+  <div class="site-description" itemprop="description">Stay Hungry, Stay Foolish.</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">64</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">18</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">28</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://space.bilibili.com/1268283" title="Bilibili → https:&#x2F;&#x2F;space.bilibili.com&#x2F;1268283" rel="noopener" target="_blank"><i class="fas fa-video fa-fw"></i>Bilibili</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://www.youtube.com/channel/UCgo_k4UEkGUNrG-resCDVKw" title="YouTube → https:&#x2F;&#x2F;www.youtube.com&#x2F;channel&#x2F;UCgo_k4UEkGUNrG-resCDVKw" rel="noopener" target="_blank"><i class="fab fa-youtube fa-fw"></i>YouTube</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 2015 – 
+  <span itemprop="copyrightYear">2024</span>
+  <span class="with-love">
+    <i class="fas fa-gamepad"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Mark</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-chart-area"></i>
+    </span>
+    <span title="站点总字数">67k</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+    <span title="站点阅读时长">4:02</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://mist.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a> 强力驱动
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.css">
+
+<script>
+NexT.utils.loadComments(document.querySelector('#gitalk-container'), () => {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.js', () => {
+    var gitalk = new Gitalk({
+      clientID    : '1d971a932df33dd64e19',
+      clientSecret: 'a51b84396586902b536b1b26a917003af50ea152',
+      repo        : 'hexo-comments',
+      owner       : 'dreamming',
+      admin       : ['dreamming'],
+      id          : '46f4f7e4fe75c644856a255b4339b987',
+        language: 'zh-CN',
+      distractionFreeMode: false
+    });
+    gitalk.render('gitalk-container');
+  }, window.Gitalk);
+});
+</script>
+
+</body>
+</html>

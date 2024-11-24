@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.4.2">
+
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-N9NJ5HB');</script>
+<!-- End Google Tag Manager -->
+
+<!-- Google Tag Manager (noscript) -->
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-N9NJ5HB"
+height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+<!-- End Google Tag Manager (noscript) -->
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"whathowhy.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"hide","padding":18,"offset":12,"onmobile":true},"copycode":{"enable":true,"show_result":true,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="最近在用Rust语言写一个轻量级的数据同步工具（DP），由于是在MacBook Pro M2上做的开发，通过cargo build –release编译后的执行文件，无法在x86_64架构的Linux系统上运行。虽然rustup提供了交叉编译的能力，但开发环境安装不同架构平台的工具链，很容易导致混乱，于是我决定通过Dockerfile来进行DP的”交叉”编译">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Rust Cross Compilation">
+<meta property="og:url" content="https://whathowhy.com/2023/08/08/RustCrossCompilation/index.html">
+<meta property="og:site_name" content="8lovelife&#39;s life">
+<meta property="og:description" content="最近在用Rust语言写一个轻量级的数据同步工具（DP），由于是在MacBook Pro M2上做的开发，通过cargo build –release编译后的执行文件，无法在x86_64架构的Linux系统上运行。虽然rustup提供了交叉编译的能力，但开发环境安装不同架构平台的工具链，很容易导致混乱，于是我决定通过Dockerfile来进行DP的”交叉”编译">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/photos/56.png">
+<meta property="article:published_time" content="2023-08-08T14:00:00.000Z">
+<meta property="article:modified_time" content="2024-11-24T15:09:32.166Z">
+<meta property="article:author" content="Mark">
+<meta property="article:tag" content="Docker">
+<meta property="article:tag" content="Rust">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/photos/56.png">
+
+<link rel="canonical" href="https://whathowhy.com/2023/08/08/RustCrossCompilation/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>Rust Cross Compilation | 8lovelife's life</title>
+  
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-MSKY7FDVPG"></script>
+    <script>
+      if (CONFIG.hostname === location.hostname) {
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-MSKY7FDVPG');
+      }
+    </script>
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">8lovelife's life</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">M&M</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://whathowhy.com/2023/08/08/RustCrossCompilation/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/avatar_what.png">
+      <meta itemprop="name" content="Mark">
+      <meta itemprop="description" content="Stay Hungry, Stay Foolish.">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="8lovelife's life">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Rust Cross Compilation
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2023-08-08 22:00:00" itemprop="dateCreated datePublished" datetime="2023-08-08T22:00:00+08:00">2023-08-08</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2024-11-24 23:09:32" itemprop="dateModified" datetime="2024-11-24T23:09:32+08:00">2024-11-24</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Rust/" itemprop="url" rel="index"><span itemprop="name">Rust</span></a>
+                </span>
+            </span>
+
+          <br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="far fa-file-word"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>874</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="far fa-clock"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              <span>3 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <img src="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/photos/56.png" class="full-image" />
+
+<p>最近在用Rust语言写一个轻量级的数据同步工具（DP），由于是在MacBook Pro M2上做的开发，通过cargo build –release编译后的执行文件，无法在x86_64架构的Linux系统上运行。虽然rustup提供了交叉编译的能力，但开发环境安装不同架构平台的工具链，很容易导致混乱，于是我决定通过Dockerfile来进行DP的”交叉”编译</p>
+<span id="more"></span>
+
+
+<h1 id="静态链接"><a href="#静态链接" class="headerlink" title="静态链接"></a>静态链接</h1><p>通过使用x86_64-musl镜像，构建静态链接执行文件</p>
+<figure class="highlight dockerfile"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">FROM</span> messense/rust-musl-cross:x86_64-musl as build</span><br><span class="line"><span class="keyword">RUN</span><span class="language-bash"> USER=root cargo new --bin ep-dp</span></span><br><span class="line"><span class="keyword">WORKDIR</span><span class="language-bash"> /ep-dp</span></span><br><span class="line"><span class="keyword">COPY</span><span class="language-bash"> ./Cargo.lock ./Cargo.lock</span></span><br><span class="line"><span class="keyword">COPY</span><span class="language-bash"> ./Cargo.toml ./Cargo.toml</span></span><br><span class="line"><span class="keyword">COPY</span><span class="language-bash"> ./src ./src</span></span><br><span class="line"><span class="keyword">RUN</span><span class="language-bash"> cargo build --release</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">FROM</span> scratch AS export-stage</span><br><span class="line"><span class="keyword">COPY</span><span class="language-bash"> --from=build /ep-dp/target/x86_64-unknown-linux-musl/release/ep-dp .</span></span><br></pre></td></tr></table></figure>
+
+<h2 id="导出构建文件"><a href="#导出构建文件" class="headerlink" title="导出构建文件"></a>导出构建文件</h2><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">DOCKER_BUILDKIT=1 docker build -f Dockerfile . --output . &amp;&amp; mv ep-dp ep-dp:musl</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">编译报错如下</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">error: failed to run custom build <span class="built_in">command</span> <span class="keyword">for</span> `openssl-sys v0.9.90`</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">...</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">run pkg_config fail: pkg-config has not been configured to support cross-compilation.</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">...</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">Could not find directory of OpenSSL installation, and this `-sys` crate cannot</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">proceed without this knowledge. If OpenSSL is installed and this crate had</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">trouble finding it,  you can <span class="built_in">set</span> the `OPENSSL_DIR` environment variable <span class="keyword">for</span> the</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">compilation process.</span></span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">解决方法</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">在Cargo.toml中添加 openssl = &#123; version = <span class="string">&quot;0.10&quot;</span>, features = [<span class="string">&quot;vendored&quot;</span>] &#125;</span></span><br></pre></td></tr></table></figure>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">on centos</span></span><br><span class="line">[root@m dp]# ldd ep-dp:musl</span><br><span class="line">        statically linked</span><br></pre></td></tr></table></figure>
+
+<h1 id="动态链接"><a href="#动态链接" class="headerlink" title="动态链接"></a>动态链接</h1><p>直接使用目标平台镜像，构建动态链接执行文件</p>
+<figure class="highlight dockerfile"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">FROM</span> --platform=linux/amd64 centos:<span class="number">7.6</span>.<span class="number">1810</span> as build</span><br><span class="line"><span class="keyword">RUN</span><span class="language-bash"> yum install -y gcc gcc-c++ openssl-devel pkg-config</span></span><br><span class="line"><span class="keyword">RUN</span><span class="language-bash"> curl --proto <span class="string">&#x27;=https&#x27;</span> --tlsv1.2 -sSf https://sh.rustup.rs | bash -s -- -y</span></span><br><span class="line"><span class="keyword">ENV</span> PATH=<span class="string">&quot;/root/.cargo/bin:$&#123;PATH&#125;&quot;</span></span><br><span class="line"><span class="keyword">RUN</span><span class="language-bash"> USER=root cargo new --bin ep-dp</span></span><br><span class="line"><span class="keyword">WORKDIR</span><span class="language-bash"> /ep-dp</span></span><br><span class="line"><span class="keyword">COPY</span><span class="language-bash"> ./Cargo.lock ./Cargo.lock</span></span><br><span class="line"><span class="keyword">COPY</span><span class="language-bash"> ./Cargo.toml ./Cargo.toml</span></span><br><span class="line"><span class="comment"># 缓存依赖包</span></span><br><span class="line"><span class="keyword">RUN</span><span class="language-bash"> cargo build --release</span></span><br><span class="line"><span class="keyword">RUN</span><span class="language-bash"> <span class="built_in">rm</span> src/*.rs</span></span><br><span class="line"><span class="keyword">COPY</span><span class="language-bash"> ./src ./src</span></span><br><span class="line"><span class="comment"># 构建</span></span><br><span class="line"><span class="keyword">RUN</span><span class="language-bash"> <span class="built_in">rm</span> ./target/release/deps/ep_dp*</span></span><br><span class="line"><span class="keyword">RUN</span><span class="language-bash"> cargo build --release</span></span><br><span class="line"><span class="comment"># 裁剪</span></span><br><span class="line"><span class="keyword">RUN</span><span class="language-bash"> strip target/release/ep-dp</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">FROM</span> scratch AS export-stage</span><br><span class="line"><span class="keyword">COPY</span><span class="language-bash"> --from=build /ep-dp/target/release/ep-dp .</span></span><br></pre></td></tr></table></figure>
+
+<h2 id="导出构建文件-1"><a href="#导出构建文件-1" class="headerlink" title="导出构建文件"></a>导出构建文件</h2><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">DOCKER_BUILDKIT=1 docker build -f Dockerfile . --output . &amp;&amp; mv ep-dp ep-dp:centos</span><br></pre></td></tr></table></figure>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">on centos</span></span><br><span class="line">[root@m dp]# ldd ep-dp:centos </span><br><span class="line">        linux-vdso.so.1 =&gt;  (0x00007ffd22bc1000)</span><br><span class="line">        libz.so.1 =&gt; /lib64/libz.so.1 (0x00007f7d961fa000)</span><br><span class="line">        libgcc_s.so.1 =&gt; /lib64/libgcc_s.so.1 (0x00007f7d95fe4000)</span><br><span class="line">        librt.so.1 =&gt; /lib64/librt.so.1 (0x00007f7d95ddc000)</span><br><span class="line">        libpthread.so.0 =&gt; /lib64/libpthread.so.0 (0x00007f7d95bc0000)</span><br><span class="line">        libm.so.6 =&gt; /lib64/libm.so.6 (0x00007f7d958be000)</span><br><span class="line">        libdl.so.2 =&gt; /lib64/libdl.so.2 (0x00007f7d956ba000)</span><br><span class="line">        libc.so.6 =&gt; /lib64/libc.so.6 (0x00007f7d952ed000)</span><br><span class="line">        /lib64/ld-linux-x86-64.so.2 (0x00007f7d96e96000)</span><br></pre></td></tr></table></figure>
+
+<h1 id="DP-Image"><a href="#DP-Image" class="headerlink" title="DP Image"></a>DP Image</h1><p>构建DP镜像</p>
+<figure class="highlight dockerfile"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">FROM</span> messense/rust-musl-cross:x86_64-musl as build</span><br><span class="line"><span class="keyword">RUN</span><span class="language-bash"> USER=root cargo new --bin ep-dp</span></span><br><span class="line"><span class="keyword">WORKDIR</span><span class="language-bash"> /ep-dp</span></span><br><span class="line"><span class="keyword">COPY</span><span class="language-bash"> ./Cargo.lock ./Cargo.lock</span></span><br><span class="line"><span class="keyword">COPY</span><span class="language-bash"> ./Cargo.toml ./Cargo.toml</span></span><br><span class="line"><span class="keyword">COPY</span><span class="language-bash"> ./src ./src</span></span><br><span class="line"><span class="keyword">RUN</span><span class="language-bash"> cargo build --release</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">FROM</span> --platform=linux/amd64 alpine</span><br><span class="line"><span class="keyword">COPY</span><span class="language-bash"> --from=build /ep-dp/target/x86_64-unknown-linux-musl/release/ep-dp .</span></span><br><span class="line"><span class="keyword">ENV</span> RUST_LOG=ep_dp=info</span><br><span class="line"><span class="keyword">RUN</span><span class="language-bash"> <span class="built_in">mkdir</span> /config</span></span><br><span class="line"><span class="keyword">WORKDIR</span><span class="language-bash"> /data</span></span><br><span class="line"><span class="keyword">ENTRYPOINT</span><span class="language-bash"> [<span class="string">&quot;/ep-dp&quot;</span>]</span></span><br></pre></td></tr></table></figure>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">[root@x dp]# docker image ls | grep ep-dp</span><br><span class="line">ep-dp    latest    5b0e6e989f8b   36 seconds ago   16.3MB</span><br></pre></td></tr></table></figure>
+
+
+<h1 id="动态链接-VS-静态链接"><a href="#动态链接-VS-静态链接" class="headerlink" title="动态链接 VS 静态链接"></a>动态链接 VS 静态链接</h1><p>静态链接执行文件是一个完整的可执行文件，包含所有的依赖库。动态链接执行文件需要依赖共享库才能正确运行</p>
+<h2 id="文件大小"><a href="#文件大小" class="headerlink" title="文件大小"></a>文件大小</h2><p>静态链接执行文件的size要大于动态链接执行文件的size</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">[root@m dp]# ls -lah ep-dp:musl</span><br><span class="line">-rwxr-xr-x 1 x x 15M Aug  7 09:44 ep-dp:musl</span><br><span class="line">[root@m dp]# ls -lah ep-dp:centos </span><br><span class="line">-rwxr-xr-x 1 x x 8.6M Aug  7 16:04 ep-dp:centos</span><br></pre></td></tr></table></figure>
+
+<h2 id="系统兼容"><a href="#系统兼容" class="headerlink" title="系统兼容"></a>系统兼容</h2><p>静态链接执行文件拥有更好的兼容性，而动态链接执行文件的运行环境需要包含所需依赖库</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">on Alpine</span></span><br><span class="line">[root@x dp]# ldd ep-dp:centos</span><br><span class="line">        /lib64/ld-linux-x86-64.so.2 (0x7ffffff65000)</span><br><span class="line">        libz.so.1 =&gt; /lib/libz.so.1 (0x7fffff4c5000)</span><br><span class="line">Error loading shared library libgcc_s.so.1: No such file or directory (needed by ep-dp:centos)</span><br><span class="line">        librt.so.1 =&gt; /lib64/ld-linux-x86-64.so.2 (0x7ffffff65000)</span><br><span class="line">        libpthread.so.0 =&gt; /lib64/ld-linux-x86-64.so.2 (0x7ffffff65000)</span><br><span class="line">        libm.so.6 =&gt; /lib64/ld-linux-x86-64.so.2 (0x7ffffff65000)</span><br><span class="line">        libdl.so.2 =&gt; /lib64/ld-linux-x86-64.so.2 (0x7ffffff65000)</span><br><span class="line">        libc.so.6 =&gt; /lib64/ld-linux-x86-64.so.2 (0x7ffffff65000)     </span><br><span class="line"></span><br><span class="line">[root@m dp]# ldd ep-dp:musl</span><br><span class="line">        statically linked          </span><br></pre></td></tr></table></figure>
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/Docker/" rel="tag"># Docker</a>
+              <a href="/tags/Rust/" rel="tag"># Rust</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2023/05/10/CleanArchitecture/" rel="prev" title="Clean Architecture">
+      <i class="fa fa-chevron-left"></i> Clean Architecture
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2023/08/31/ClickHouseStandalone/" rel="next" title="Deploying ClickHouse - Stand-alone">
+      Deploying ClickHouse - Stand-alone <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="gitalk-container"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E9%9D%99%E6%80%81%E9%93%BE%E6%8E%A5"><span class="nav-number">1.</span> <span class="nav-text">静态链接</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%AF%BC%E5%87%BA%E6%9E%84%E5%BB%BA%E6%96%87%E4%BB%B6"><span class="nav-number">1.1.</span> <span class="nav-text">导出构建文件</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%8A%A8%E6%80%81%E9%93%BE%E6%8E%A5"><span class="nav-number">2.</span> <span class="nav-text">动态链接</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%AF%BC%E5%87%BA%E6%9E%84%E5%BB%BA%E6%96%87%E4%BB%B6-1"><span class="nav-number">2.1.</span> <span class="nav-text">导出构建文件</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#DP-Image"><span class="nav-number">3.</span> <span class="nav-text">DP Image</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%8A%A8%E6%80%81%E9%93%BE%E6%8E%A5-VS-%E9%9D%99%E6%80%81%E9%93%BE%E6%8E%A5"><span class="nav-number">4.</span> <span class="nav-text">动态链接 VS 静态链接</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%96%87%E4%BB%B6%E5%A4%A7%E5%B0%8F"><span class="nav-number">4.1.</span> <span class="nav-text">文件大小</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%B3%BB%E7%BB%9F%E5%85%BC%E5%AE%B9"><span class="nav-number">4.2.</span> <span class="nav-text">系统兼容</span></a></li></ol></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="Mark"
+      src="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/avatar_what.png">
+  <p class="site-author-name" itemprop="name">Mark</p>
+  <div class="site-description" itemprop="description">Stay Hungry, Stay Foolish.</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">64</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">18</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">28</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://space.bilibili.com/1268283" title="Bilibili → https:&#x2F;&#x2F;space.bilibili.com&#x2F;1268283" rel="noopener" target="_blank"><i class="fas fa-video fa-fw"></i>Bilibili</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://www.youtube.com/channel/UCgo_k4UEkGUNrG-resCDVKw" title="YouTube → https:&#x2F;&#x2F;www.youtube.com&#x2F;channel&#x2F;UCgo_k4UEkGUNrG-resCDVKw" rel="noopener" target="_blank"><i class="fab fa-youtube fa-fw"></i>YouTube</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 2015 – 
+  <span itemprop="copyrightYear">2024</span>
+  <span class="with-love">
+    <i class="fas fa-gamepad"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Mark</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-chart-area"></i>
+    </span>
+    <span title="站点总字数">67k</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+    <span title="站点阅读时长">4:02</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://mist.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a> 强力驱动
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.css">
+
+<script>
+NexT.utils.loadComments(document.querySelector('#gitalk-container'), () => {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.js', () => {
+    var gitalk = new Gitalk({
+      clientID    : '1d971a932df33dd64e19',
+      clientSecret: 'a51b84396586902b536b1b26a917003af50ea152',
+      repo        : 'hexo-comments',
+      owner       : 'dreamming',
+      admin       : ['dreamming'],
+      id          : '94abfaf29b39ee448e611a65a7a44692',
+        language: 'zh-CN',
+      distractionFreeMode: false
+    });
+    gitalk.render('gitalk-container');
+  }, window.Gitalk);
+});
+</script>
+
+</body>
+</html>

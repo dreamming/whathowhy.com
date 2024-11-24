@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.4.2">
+
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-N9NJ5HB');</script>
+<!-- End Google Tag Manager -->
+
+<!-- Google Tag Manager (noscript) -->
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-N9NJ5HB"
+height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+<!-- End Google Tag Manager (noscript) -->
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"whathowhy.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"hide","padding":18,"offset":12,"onmobile":true},"copycode":{"enable":true,"show_result":true,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="事物的隔离主要是为了控制多个事物并发执行时相互间的影响，多个事物可能会在同一时刻访问和修改同一组数据，这会产生各种并发问题，导致数据不一致。通过设置不同的事物隔离级别，数据库可以在并发性能与并发问题之间进行权衡，以适应不同应用场景的需求。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="MySQL 事务隔离级别与MVCC">
+<meta property="og:url" content="https://whathowhy.com/2024/09/29/MySQLMVCC/index.html">
+<meta property="og:site_name" content="8lovelife&#39;s life">
+<meta property="og:description" content="事物的隔离主要是为了控制多个事物并发执行时相互间的影响，多个事物可能会在同一时刻访问和修改同一组数据，这会产生各种并发问题，导致数据不一致。通过设置不同的事物隔离级别，数据库可以在并发性能与并发问题之间进行权衡，以适应不同应用场景的需求。">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/photos/21.png">
+<meta property="article:published_time" content="2024-09-29T08:10:00.000Z">
+<meta property="article:modified_time" content="2024-11-24T15:09:32.166Z">
+<meta property="article:author" content="Mark">
+<meta property="article:tag" content="MySQL">
+<meta property="article:tag" content="MVCC">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/photos/21.png">
+
+<link rel="canonical" href="https://whathowhy.com/2024/09/29/MySQLMVCC/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>MySQL 事务隔离级别与MVCC | 8lovelife's life</title>
+  
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-MSKY7FDVPG"></script>
+    <script>
+      if (CONFIG.hostname === location.hostname) {
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-MSKY7FDVPG');
+      }
+    </script>
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">8lovelife's life</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">M&M</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://whathowhy.com/2024/09/29/MySQLMVCC/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/avatar_what.png">
+      <meta itemprop="name" content="Mark">
+      <meta itemprop="description" content="Stay Hungry, Stay Foolish.">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="8lovelife's life">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          MySQL 事务隔离级别与MVCC
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2024-09-29 16:10:00" itemprop="dateCreated datePublished" datetime="2024-09-29T16:10:00+08:00">2024-09-29</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2024-11-24 23:09:32" itemprop="dateModified" datetime="2024-11-24T23:09:32+08:00">2024-11-24</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/MySQL/" itemprop="url" rel="index"><span itemprop="name">MySQL</span></a>
+                </span>
+            </span>
+
+          <br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="far fa-file-word"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>1.6k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="far fa-clock"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              <span>6 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <img src="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/photos/21.png" class="full-image">
+
+<p>事物的隔离主要是为了控制多个事物并发执行时相互间的影响，多个事物可能会在同一时刻访问和修改同一组数据，这会产生各种并发问题，导致数据不一致。通过设置不同的事物隔离级别，数据库可以在并发性能与并发问题之间进行权衡，以适应不同应用场景的需求。</p>
+<span id="more"></span>
+
+<h1 id="MySQL-事物隔离级别"><a href="#MySQL-事物隔离级别" class="headerlink" title="MySQL 事物隔离级别"></a>MySQL 事物隔离级别</h1><p>SQL标准中定义了四种事物隔离级别，分别为 Read  Uncommitted、Read Committed、Repeatable Read、Serializable。MySQL InnoDB 引擎实现了这四种隔离级别，我们先来回顾一下这四种事物隔离级别的特点。</p>
+<table>
+<thead>
+<tr>
+<th><strong>Transaction Isolation</strong></th>
+<th><strong>Common Concurrency Issues</strong></th>
+<th><strong>Concurrency Performance</strong></th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Read Uncommitted</strong></td>
+<td>Dirty Reads, Non-repeatable Reads, Phantom Reads</td>
+<td>Highest</td>
+</tr>
+<tr>
+<td><strong>Read Committed</strong></td>
+<td>Non-repeatable Reads, Phantom Reads</td>
+<td>High</td>
+</tr>
+<tr>
+<td><strong>Repeatable Read</strong></td>
+<td>Phantom Reads</td>
+<td>Good</td>
+</tr>
+<tr>
+<td><strong>Serializable</strong></td>
+<td>No concurrency issues, fully serialized execution</td>
+<td>Lowest</td>
+</tr>
+</tbody></table>
+<h2 id="隔离级别选择"><a href="#隔离级别选择" class="headerlink" title="隔离级别选择"></a>隔离级别选择</h2><p>从以上图表可以发现，Read Uncommitted 的并发性能是最高的，导致的并发问题也是最多的，尤其是会产生脏读，这会导致更多的数据不一致，对于一般系统来说是无法接受的，虽然 Serializable不会产生并发问题，但并发性能是最低的，对于一般系统来说同样是无法接受的，大部分的应用会根据不同的使用场景，在 Read Committed 和 Repeatable Read 两个隔离级别之间作出选择。不同的数据库厂商也有不同的默认隔离级别选择，比如 MySQL InnoDB 默认的隔离级别是 Repeatable Read，而 Oracle 默认的隔离级别是 Read Committed。</p>
+<h1 id="MVCC"><a href="#MVCC" class="headerlink" title="MVCC"></a>MVCC</h1><p>MVCC 全称 Multiversion Concurrency Control（多版本并发控制），是一种无锁的并发访问技术，最早的 MVCC 阐述可以追溯到 1978 年，一般被用在数据库管理系统中。MySQL InnoDB 提供了 MVCC 的实现，大大提高了数据库并发访问的性能。Read Committed 和 Repeatable Read 能够拥有如此良好的性能，离不开 MVCC 的支持。需要注意的是 Read Uncommitted 和 Serializable 隔离级别不支持 MVCC。</p>
+<h2 id="版本快照"><a href="#版本快照" class="headerlink" title="版本快照"></a>版本快照</h2><p>MVCC 通过维护每一行数据的变更版本来实现并发控制，每当有事物更改某一行数据的时候，MySQL InnoDB 并不会直接覆盖原始值，而是生成一个新的快照，内容存储在 undo log 文件中。假设现在有 T1、T2、T3 这个三事物尝试更新账户 balance 的值，则会创建如下图所示的版本快照。</p>
+<table>
+<thead>
+<tr>
+<th><strong>Operation</strong></th>
+<th><strong>balance</strong></th>
+<th><strong>DB_TRX_ID</strong></th>
+<th><strong>DB_ROLL_PTR</strong></th>
+</tr>
+</thead>
+<tbody><tr>
+<td>T3 updates balance &#x3D; 400 (uncommitted <strong>latest record</strong>)</td>
+<td>400</td>
+<td>3</td>
+<td>↓</td>
+</tr>
+<tr>
+<td>T2 updates balance &#x3D; 300 (uncommitted)</td>
+<td>300</td>
+<td>2</td>
+<td>↓</td>
+</tr>
+<tr>
+<td>T1 updates balance &#x3D; 200 (uncommitted)</td>
+<td>200</td>
+<td>1</td>
+<td>↓</td>
+</tr>
+<tr>
+<td>Initial state</td>
+<td>100</td>
+<td>0</td>
+<td>NULL</td>
+</tr>
+</tbody></table>
+<h2 id="版本链"><a href="#版本链" class="headerlink" title="版本链"></a>版本链</h2><p>DB_TRX_ID 和 DB_ROLL_PTR 是隐藏的行记录字段，存储在 Record Header（聚簇索引）中，分别表示最近修改该行记录的事物ID和指向该行记录的 undo log（上一个版本数据），下图展示了 T1、T2、T3 事物形成的版本链。</p>
+<table>
+<thead>
+<tr>
+<th>Transaction T3 (DB_TRX_ID &#x3D; 3, balance &#x3D; 400, uncommitted)</th>
+<th>→</th>
+<th>Transaction T2 (DB_TRX_ID &#x3D; 2, balance &#x3D; 300, uncommitted)</th>
+<th>→</th>
+<th>Transaction T1 (DB_TRX_ID &#x3D; 1, balance &#x3D; 200, uncommitted)</th>
+<th>→</th>
+<th>Initial state (DB_TRX_ID &#x3D; 0, balance &#x3D; 100)</th>
+</tr>
+</thead>
+</table>
+<p>针对某一行数据修改的并发事物越多，产生的 undo log 也越多，这会占用更多的存储空间，典型的通过空间来换取时间。</p>
+<h2 id="Read-View"><a href="#Read-View" class="headerlink" title="Read View"></a>Read View</h2><p>Read View 规定了当前事物在读取数据时，哪些版本可见，哪些版本不可见，这些可见性规则是 MVCC 实现的一部分，Read View 主要有以下几个部分组成：</p>
+<ol>
+<li>ACTIVE_TRX_IDS：记录当前系统中所有尚未提交的事务ID。</li>
+<li>LOW_LIMIT_ID：系统中下一个还未开始的事务的ID。</li>
+<li>UP_LIMIT_ID：ACTIVE_TRX_IDS 中的最小值。</li>
+<li>CREATOR_TRX_ID：当前正在执行的事务ID。创建或修改数据的事务会分配事务ID，并将该ID记录为 CREATOR_TRX_ID，如果事物只是查询则事物ID默认为 0。</li>
+</ol>
+<p>之前我们有提到 Read Committed 和 Repeatable Read 都支持 MVCC，但他们创建 Read View 的时机是不同的。</p>
+<ul>
+<li>Read Committed：事物中的每一次查询，都会创建一个 Read View，这意味着多次查询同一条记录可能会看到不同的结果，存在不可重复读的问题。</li>
+<li>Repeatable Read：整个事物只会创建一个 Read View，这意味着多次查询同一条记录，看到的结果是相同的，解决了不可重复读的问题。</li>
+</ul>
+<h2 id="可见性规则"><a href="#可见性规则" class="headerlink" title="可见性规则"></a>可见性规则</h2><p>当事务第一次执行 SELECT … FROM table 时，MySQL InnoDB 会创建一个 Read View，按照如下几条检查规则，可以确定当前查询可以看到哪些版本的数据：</p>
+<ol>
+<li>如果被访问的版本中 DB_TRX_ID &#x3D; CREATOR_TRX_ID，则表明当前事物正在访问自己修改的版本，所以该版本对当前事物可见。</li>
+<li>如果被访问的版本中 DB_TRX_ID &lt; UP_LIMIT_ID，则表明当前访问的版本事物在此 Read View 创建前已经提交，所以该版本对当前事物可见。</li>
+<li>如果被访问的版本中 DB_TRX_ID &gt;&#x3D; LOW_LIMIT_ID，则表明当前访问的事物在此 Read View 创建后开启，所以该版本对当前事物不可见。</li>
+<li>如果被访问的版本中 UP_LIMIT_ID &lt;&#x3D; DB_TRX_ID &lt; LOW_LIMIT_ID，则可见性需要按照如下情况决定，如果 DB_TRX_ID 不在 ACTIVE_TRX_IDS 列表中，则说明当前访问的版本已经提交，该版本对当前事物可见，若在 ACTIVE_TRX_IDS 列表中，则说明当前访问的版本未提交，对当前事物不可见。</li>
+</ol>
+<p>若经过以上规则判断，版本 DB_TRX_ID 对当前事物不可见，则沿着 DB_TRX_ID 的下一个版本继续进行规则判断，一直到找到当前事物可见的版本。值得注意的是，规则 1 的存在是 Repeatable Read 隔离级别存在<strong>幻读</strong>问题的一个原因。</p>
+<table>
+<thead>
+<tr>
+<th><strong>Timeline</strong></th>
+<th><strong>Transaction A</strong></th>
+<th><strong>Transaction B</strong></th>
+</tr>
+</thead>
+<tbody><tr>
+<td>T1</td>
+<td><code>START TRANSACTION;</code></td>
+<td></td>
+</tr>
+<tr>
+<td>T2</td>
+<td><code>SELECT balance FROM accounts WHERE id = 1;</code> <strong>(No record found)</strong></td>
+<td></td>
+</tr>
+<tr>
+<td>T3</td>
+<td></td>
+<td><code>START TRANSACTION;</code></td>
+</tr>
+<tr>
+<td>T4</td>
+<td></td>
+<td><code>INSERT INTO accounts (id, balance) VALUES (1, 100);</code></td>
+</tr>
+<tr>
+<td>T5</td>
+<td><code>SELECT balance FROM accounts WHERE id = 1;</code> <strong>(No record found, due to Repeatable Read isolation)</strong></td>
+<td></td>
+</tr>
+<tr>
+<td>T6</td>
+<td></td>
+<td><code>COMMIT;</code> <strong>(Transaction B commits the new record)</strong></td>
+</tr>
+<tr>
+<td>T7</td>
+<td><code>UPDATE accounts SET balance = balance + 50 WHERE id = 1;</code> <strong>(1 row affected, current read behavior)</strong></td>
+<td></td>
+</tr>
+<tr>
+<td>T8</td>
+<td><code>SELECT balance FROM accounts WHERE id = 1;</code> <strong>(Reads updated balance of 150)</strong></td>
+<td></td>
+</tr>
+<tr>
+<td>T9</td>
+<td><code>COMMIT;</code></td>
+<td></td>
+</tr>
+</tbody></table>
+<p>事物 A 在 T2 和 T8 时间的两次查询，返回了不同的结果集，产生了幻读问题。原因是事物 A 在 T7 时间更新时发生了当前读，更新到了最新已经被提交的数据，紧接着 T8 又进行了快照读，根据可见性规则 1 的描述，查询到了可见的版本数据。</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/MySQL/" rel="tag"># MySQL</a>
+              <a href="/tags/MVCC/" rel="tag"># MVCC</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2024/09/24/MySQLIsolation/" rel="prev" title="MySQL 事务隔离级别与并发问题">
+      <i class="fa fa-chevron-left"></i> MySQL 事务隔离级别与并发问题
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2024/10/31/MySQLTILockPart1/" rel="next" title="MySQL 事物隔离级别与锁（上）">
+      MySQL 事物隔离级别与锁（上） <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="gitalk-container"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#MySQL-%E4%BA%8B%E7%89%A9%E9%9A%94%E7%A6%BB%E7%BA%A7%E5%88%AB"><span class="nav-number">1.</span> <span class="nav-text">MySQL 事物隔离级别</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E9%9A%94%E7%A6%BB%E7%BA%A7%E5%88%AB%E9%80%89%E6%8B%A9"><span class="nav-number">1.1.</span> <span class="nav-text">隔离级别选择</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#MVCC"><span class="nav-number">2.</span> <span class="nav-text">MVCC</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%89%88%E6%9C%AC%E5%BF%AB%E7%85%A7"><span class="nav-number">2.1.</span> <span class="nav-text">版本快照</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%89%88%E6%9C%AC%E9%93%BE"><span class="nav-number">2.2.</span> <span class="nav-text">版本链</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Read-View"><span class="nav-number">2.3.</span> <span class="nav-text">Read View</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%8F%AF%E8%A7%81%E6%80%A7%E8%A7%84%E5%88%99"><span class="nav-number">2.4.</span> <span class="nav-text">可见性规则</span></a></li></ol></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="Mark"
+      src="https://8lovelife-1256398294.cos.ap-shanghai.myqcloud.com/avatar_what.png">
+  <p class="site-author-name" itemprop="name">Mark</p>
+  <div class="site-description" itemprop="description">Stay Hungry, Stay Foolish.</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">64</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">18</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">28</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://space.bilibili.com/1268283" title="Bilibili → https:&#x2F;&#x2F;space.bilibili.com&#x2F;1268283" rel="noopener" target="_blank"><i class="fas fa-video fa-fw"></i>Bilibili</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://www.youtube.com/channel/UCgo_k4UEkGUNrG-resCDVKw" title="YouTube → https:&#x2F;&#x2F;www.youtube.com&#x2F;channel&#x2F;UCgo_k4UEkGUNrG-resCDVKw" rel="noopener" target="_blank"><i class="fab fa-youtube fa-fw"></i>YouTube</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 2015 – 
+  <span itemprop="copyrightYear">2024</span>
+  <span class="with-love">
+    <i class="fas fa-gamepad"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Mark</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-chart-area"></i>
+    </span>
+    <span title="站点总字数">67k</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+    <span title="站点阅读时长">4:02</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://mist.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a> 强力驱动
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.css">
+
+<script>
+NexT.utils.loadComments(document.querySelector('#gitalk-container'), () => {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.js', () => {
+    var gitalk = new Gitalk({
+      clientID    : '1d971a932df33dd64e19',
+      clientSecret: 'a51b84396586902b536b1b26a917003af50ea152',
+      repo        : 'hexo-comments',
+      owner       : 'dreamming',
+      admin       : ['dreamming'],
+      id          : 'd74e9c762771b2c436fff11b2e2a1e36',
+        language: 'zh-CN',
+      distractionFreeMode: false
+    });
+    gitalk.render('gitalk-container');
+  }, window.Gitalk);
+});
+</script>
+
+</body>
+</html>
